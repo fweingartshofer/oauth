@@ -1,9 +1,12 @@
 import gleam/bit_array
 import gleam/bool
+import gleam/dynamic/decode
 import gleam/hackney
 import gleam/http
 import gleam/http/request
+import gleam/http/response
 import gleam/io
+import gleam/json
 import gleam/list
 import gleam/option
 import gleam/order
@@ -55,6 +58,22 @@ pub type Error {
   InvalidUri
 }
 
+pub type AccessTokenResponse {
+  TokenErrorResponse(
+    status: Int,
+    error: String,
+    error_description: option.Option(String),
+    error_uri: option.Option(String),
+  )
+  AccessTokenResponse(
+    access_token: String,
+    token_type: String,
+    expires_in: option.Option(Int),
+    refresh_token: option.Option(String),
+    scope: Scope,
+  )
+}
+
 /// Creates the uri that the resource owner should be redirected too.
 pub fn make_redirect_uri(
   oauth_server server: uri.Uri,
@@ -78,6 +97,8 @@ pub fn make_redirect_uri(
   uri.Uri(..server, query: option.Some(uri.query_to_string(queries)))
 }
 
+/// Creates a http request from the given TokenRequest, but does not send.
+/// Sending the request is done by the user of the function.
 pub fn to_http_request(
   request: TokenRequest,
 ) -> Result(request.Request(String), Error) {
@@ -147,6 +168,74 @@ fn add_authentication_to_request(
   }
 }
 
+/// Parses a token response and returns the access and refresh token if valid response, otherwise the error response.
+pub fn parse_token_response(
+  response: response.Response(String),
+) -> Result(AccessTokenResponse, json.DecodeError) {
+  case response.status {
+    200 -> parse_token_success_response(response)
+    _ -> parse_token_error_response(response)
+  }
+}
+
+fn parse_token_success_response(
+  response: response.Response(String),
+) -> Result(AccessTokenResponse, json.DecodeError) {
+  let token_decoder = {
+    use access_token <- decode.field("access_token", decode.string)
+    use token_type <- decode.field("token_type", decode.string)
+    use expires_in <- decode.optional_field(
+      "expires_in",
+      option.None,
+      decode.optional(decode.int),
+    )
+    use refresh_token <- decode.optional_field(
+      "refresh_token",
+      option.None,
+      decode.optional(decode.string),
+    )
+    use scope <- decode.optional_field(
+      "scope",
+      option.None,
+      decode.optional(decode.string),
+    )
+    let scope = scope |> option.map(parse_scope) |> option.unwrap([])
+    decode.success(AccessTokenResponse(
+      access_token: access_token,
+      token_type: token_type,
+      expires_in: expires_in,
+      refresh_token: refresh_token,
+      scope: scope,
+    ))
+  }
+  json.parse(from: response.body, using: token_decoder)
+}
+
+fn parse_token_error_response(
+  response: response.Response(String),
+) -> Result(AccessTokenResponse, json.DecodeError) {
+  let error_decoder = {
+    use error <- decode.field("error", decode.string)
+    use error_description <- decode.optional_field(
+      "error_description",
+      option.None,
+      decode.optional(decode.string),
+    )
+    use error_uri <- decode.optional_field(
+      "error_uri",
+      option.None,
+      decode.optional(decode.string),
+    )
+    decode.success(TokenErrorResponse(
+      status: response.status,
+      error: error,
+      error_description: error_description,
+      error_uri: error_uri,
+    ))
+  }
+  json.parse(from: response.body, using: error_decoder)
+}
+
 /// Checks if a given secret is not expired.
 /// Returns always true for secrets that cannot expire.
 pub fn secret_is_valid(secret: Secret) -> Bool {
@@ -157,6 +246,12 @@ pub fn secret_is_valid(secret: Secret) -> Bool {
   }
 }
 
+/// Parses a string containing the space separated scopes.
+///
+/// ## Example
+/// ```gleam
+/// parse_scope("scope1 scope2")
+/// ````
 pub fn parse_scope(scope: String) -> Scope {
   scope
   |> string.trim()
