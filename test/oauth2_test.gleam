@@ -1,3 +1,5 @@
+import glacier
+import glacier/should
 import gleam/http
 import gleam/http/request
 import gleam/http/response
@@ -8,12 +10,10 @@ import gleam/string
 import gleam/time/duration
 import gleam/time/timestamp
 import gleam/uri
-import gleeunit
-import gleeunit/should
 import oauth2
 
 pub fn main() -> Nil {
-  gleeunit.main()
+  glacier.main()
 }
 
 pub fn parse_scope_with_two_scopes_test() {
@@ -228,6 +228,38 @@ pub fn to_http_request_for_public_auth_test() {
       method: http.Post,
       headers: [#("content-type", "application/x-www-form-urlencoded")],
       body: "redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback&grant_type=authorization_code&client_id=test&code=asdf",
+      scheme: http.Https,
+      host: "example.com",
+      port: option.None,
+      path: "/oauth2/",
+      query: option.None,
+    )
+
+  // When
+  let res = oauth2.to_http_request(token_request)
+  // Then
+  res |> should.equal(Ok(expected))
+}
+
+pub fn to_http_request_for_resource_owner_request_test() {
+  // Given
+  let assert Ok(server) = uri.parse("https://example.com/oauth2/")
+  let token_request =
+    oauth2.ResourceOwnerCredentialsGrantTokenRequest(
+      server,
+      oauth2.ClientSecretBasic(oauth2.ClientId("test"), oauth2.Secret("test")),
+      "username",
+      "password",
+      ["scope1"],
+    )
+  let expected =
+    request.Request(
+      method: http.Post,
+      headers: [
+        #("content-type", "application/x-www-form-urlencoded"),
+        #("authentication", "Basic dGVzdDp0ZXN0"),
+      ],
+      body: "scope=scope1&grant_type=password&client_id=test&username=username&password=password",
       scheme: http.Https,
       host: "example.com",
       port: option.None,

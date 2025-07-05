@@ -1,11 +1,9 @@
 import gleam/bit_array
 import gleam/bool
 import gleam/dynamic/decode
-import gleam/hackney
 import gleam/http
 import gleam/http/request
 import gleam/http/response
-import gleam/io
 import gleam/json
 import gleam/list
 import gleam/option
@@ -44,6 +42,13 @@ pub type TokenRequest {
     authentication: ClientAuthentication,
     redirect_uri: option.Option(uri.Uri),
     code: String,
+  )
+  ResourceOwnerCredentialsGrantTokenRequest(
+    server: uri.Uri,
+    authentication: ClientAuthentication,
+    username: String,
+    password: String,
+    scope: Scope,
   )
 }
 
@@ -103,33 +108,59 @@ pub fn to_http_request(
   request: TokenRequest,
 ) -> Result(request.Request(String), Error) {
   case request {
-    AuthorizationCodeGrantTokenRequest(server, client_auth, redirect_uri, code) -> {
+    AuthorizationCodeGrantTokenRequest(_server, client_auth, redirect_uri, code) -> {
       let redirect_uri = to_redirect_uri_query(redirect_uri)
-      let body =
-        uri.query_to_string(
-          [
-            #("grant_type", "authorization_code"),
-            #("client_id", client_auth.client_id.value),
-            #("code", code),
-          ]
-          |> add_if_present(redirect_uri),
-        )
-      {
-        let server = uri.Uri(..server, query: option.None)
-        use request <- result.map(request.from_uri(server))
-        request
-        |> request.set_method(http.Post)
-        |> request.set_header(
-          "content-type",
-          "application/x-www-form-urlencoded",
-        )
-        |> request.set_body(body)
-        |> add_authentication_to_request(client_auth)
+      [
+        #("grant_type", "authorization_code"),
+        #("client_id", client_auth.client_id.value),
+        #("code", code),
+      ]
+      |> add_if_present(redirect_uri)
+    }
+    ResourceOwnerCredentialsGrantTokenRequest(
+      server: _server,
+      authentication: client_auth,
+      username: username,
+      password: password,
+      scope: scope,
+    ) -> {
+      let scope = case list.is_empty(scope) {
+        False -> option.Some(#("scope", scope |> string.join(" ")))
+        True -> option.None
       }
-      |> result.map_error(fn(_x) { InvalidUri })
-      |> result.flatten()
+      [
+        #("grant_type", "password"),
+        #("client_id", client_auth.client_id.value),
+        #("username", username),
+        #("password", password),
+      ]
+      |> add_if_present(scope)
     }
   }
+  |> uri.query_to_string()
+  |> setup_request(
+    server: request.server,
+    body: _,
+    client_auth: request.authentication,
+  )
+}
+
+fn setup_request(
+  server server: uri.Uri,
+  body body: String,
+  client_auth client_auth: ClientAuthentication,
+) {
+  let server = uri.Uri(..server, query: option.None)
+  {
+    use request <- result.map(request.from_uri(server))
+    request
+    |> request.set_method(http.Post)
+    |> request.set_header("content-type", "application/x-www-form-urlencoded")
+    |> request.set_body(body)
+    |> add_authentication_to_request(client_auth)
+  }
+  |> result.map_error(fn(_x) { InvalidUri })
+  |> result.flatten()
 }
 
 fn add_authentication_to_request(
