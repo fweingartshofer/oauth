@@ -50,6 +50,12 @@ pub type TokenRequest {
     password: String,
     scope: Scope,
   )
+  RefreshTokenGrantRequest(
+    server: uri.Uri,
+    authentication: ClientAuthentication,
+    refresh_token: String,
+    scope: Scope,
+  )
 }
 
 pub type ClientAuthentication {
@@ -76,6 +82,14 @@ pub type AccessTokenResponse {
     expires_in: option.Option(Int),
     refresh_token: option.Option(String),
     scope: Scope,
+  )
+}
+
+type OauthRequest {
+  OauthRequest(
+    token_endpoint: uri.Uri,
+    body: List(#(String, String)),
+    headers: List(#(String, String)),
   )
 }
 
@@ -110,16 +124,12 @@ pub fn to_http_request(
   case request {
     AuthorizationCodeGrantTokenRequest(_server, client_auth, redirect_uri, code) -> {
       let redirect_uri = to_redirect_uri_query(redirect_uri)
-      [
-        #("grant_type", "authorization_code"),
-        #("client_id", client_auth.client_id.value),
-        #("code", code),
-      ]
+      [#("grant_type", "authorization_code"), #("code", code)]
       |> add_if_present(redirect_uri)
     }
     ResourceOwnerCredentialsGrantTokenRequest(
       server: _server,
-      authentication: client_auth,
+      authentication: _client_auth,
       username: username,
       password: password,
       scope: scope,
@@ -130,10 +140,17 @@ pub fn to_http_request(
       }
       [
         #("grant_type", "password"),
-        #("client_id", client_auth.client_id.value),
         #("username", username),
         #("password", password),
       ]
+      |> add_if_present(scope)
+    }
+    RefreshTokenGrantRequest(_server, _client_auth, refresh_token, scope) -> {
+      let scope = case list.is_empty(scope) {
+        False -> option.Some(#("scope", scope |> string.join(" ")))
+        True -> option.None
+      }
+      [#("grant_type", "refresh_token"), #("refresh_token", refresh_token)]
       |> add_if_present(scope)
     }
   }
@@ -180,13 +197,14 @@ fn add_authentication_to_request(
         |> Ok()
       })
     }
-    ClientSecretPost(_client_id, client_secret) -> {
+    ClientSecretPost(client_id, client_secret) -> {
       client_secret
       |> secret_is_valid()
       |> bool.guard(Error(SecretExpired), fn() {
         req
         |> request.set_body(
           uri.query_to_string([
+            #("client_id", client_id.value),
             #("client_secret", client_secret.value),
             ..uri.parse_query(req.body)
             |> result.unwrap([])
@@ -195,7 +213,16 @@ fn add_authentication_to_request(
         |> Ok()
       })
     }
-    PublicAuthentication(_client_id) -> Ok(req)
+    PublicAuthentication(client_id) ->
+      req
+      |> request.set_body(
+        uri.query_to_string([
+          #("client_id", client_id.value),
+          ..uri.parse_query(req.body)
+          |> result.unwrap([])
+        ]),
+      )
+      |> Ok()
   }
 }
 
