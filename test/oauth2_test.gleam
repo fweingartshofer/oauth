@@ -3,9 +3,7 @@ import glacier/should
 import gleam/http
 import gleam/http/request
 import gleam/http/response
-import gleam/io
 import gleam/option
-import gleam/result
 import gleam/string
 import gleam/time/duration
 import gleam/time/timestamp
@@ -105,7 +103,7 @@ pub fn make_redirect_uri_test() {
 
 pub fn to_http_request_for_auth_basic_test() {
   // Given
-  let assert Ok(server) = uri.parse("https://example.com/oauth2/?q=asdf")
+  let assert Ok(server) = uri.parse("https://example.com/oauth2/")
   let assert Ok(redirect_uri) = uri.parse("http://localhost:8080/callback")
   let token_request =
     oauth2.AuthorizationCodeGrantTokenRequest(
@@ -137,7 +135,7 @@ pub fn to_http_request_for_auth_basic_test() {
 
 pub fn to_http_request_for_auth_basic_with_expired_secret_test() {
   // Given
-  let assert Ok(server) = uri.parse("https://example.com/oauth2/?q=asdf")
+  let assert Ok(server) = uri.parse("https://example.com/oauth2/")
   let assert Ok(redirect_uri) = uri.parse("http://localhost:8080/callback")
   let secret =
     oauth2.SecretWithExpiration(
@@ -161,7 +159,7 @@ pub fn to_http_request_for_auth_basic_with_expired_secret_test() {
 
 pub fn to_http_request_for_auth_post_test() {
   // Given
-  let assert Ok(server) = uri.parse("https://example.com/oauth2/?q=asdf")
+  let assert Ok(server) = uri.parse("https://example.com/oauth2/")
   let assert Ok(redirect_uri) = uri.parse("http://localhost:8080/callback")
   let token_request =
     oauth2.AuthorizationCodeGrantTokenRequest(
@@ -190,7 +188,7 @@ pub fn to_http_request_for_auth_post_test() {
 
 pub fn to_http_request_for_auth_post_with_expired_secret_test() {
   // Given
-  let assert Ok(server) = uri.parse("https://example.com/oauth2/?q=asdf")
+  let assert Ok(server) = uri.parse("https://example.com/oauth2/asdf")
   let assert Ok(redirect_uri) = uri.parse("http://localhost:8080/callback")
   let secret =
     oauth2.SecretWithExpiration(
@@ -214,7 +212,7 @@ pub fn to_http_request_for_auth_post_with_expired_secret_test() {
 
 pub fn to_http_request_for_public_auth_test() {
   // Given
-  let assert Ok(server) = uri.parse("https://example.com/oauth2/?q=asdf")
+  let assert Ok(server) = uri.parse("https://example.com/oauth2/")
   let assert Ok(redirect_uri) = uri.parse("http://localhost:8080/callback")
   let token_request =
     oauth2.AuthorizationCodeGrantTokenRequest(

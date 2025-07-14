@@ -38,20 +38,20 @@ pub type State {
 
 pub type TokenRequest {
   AuthorizationCodeGrantTokenRequest(
-    server: uri.Uri,
+    token_endpoint: uri.Uri,
     authentication: ClientAuthentication,
     redirect_uri: option.Option(uri.Uri),
     code: String,
   )
   ResourceOwnerCredentialsGrantTokenRequest(
-    server: uri.Uri,
+    token_endpoint: uri.Uri,
     authentication: ClientAuthentication,
     username: String,
     password: String,
     scope: Scope,
   )
   RefreshTokenGrantRequest(
-    server: uri.Uri,
+    token_endpoint: uri.Uri,
     authentication: ClientAuthentication,
     refresh_token: String,
     scope: Scope,
@@ -85,12 +85,9 @@ pub type AccessTokenResponse {
   )
 }
 
-type OauthRequest {
-  OauthRequest(
-    token_endpoint: uri.Uri,
-    body: List(#(String, String)),
-    headers: List(#(String, String)),
-  )
+type AuthLocation {
+  Header(key: String, value: String)
+  Body(value: List(#(String, String)))
 }
 
 /// Creates the uri that the resource owner should be redirected too.
@@ -122,13 +119,18 @@ pub fn to_http_request(
   request: TokenRequest,
 ) -> Result(request.Request(String), Error) {
   case request {
-    AuthorizationCodeGrantTokenRequest(_server, client_auth, redirect_uri, code) -> {
+    AuthorizationCodeGrantTokenRequest(
+      _server,
+      _client_auth,
+      redirect_uri,
+      code,
+    ) -> {
       let redirect_uri = to_redirect_uri_query(redirect_uri)
       [#("grant_type", "authorization_code"), #("code", code)]
       |> add_if_present(redirect_uri)
     }
     ResourceOwnerCredentialsGrantTokenRequest(
-      server: _server,
+      token_endpoint: _server,
       authentication: _client_auth,
       username: username,
       password: password,
@@ -154,36 +156,45 @@ pub fn to_http_request(
       |> add_if_present(scope)
     }
   }
-  |> uri.query_to_string()
   |> setup_request(
-    server: request.server,
+    token_endpoint: request.token_endpoint,
     body: _,
     client_auth: request.authentication,
   )
 }
 
 fn setup_request(
-  server server: uri.Uri,
-  body body: String,
+  token_endpoint token_endpoint: uri.Uri,
+  body body: List(#(String, String)),
   client_auth client_auth: ClientAuthentication,
-) {
-  let server = uri.Uri(..server, query: option.None)
+) -> Result(request.Request(String), Error) {
+  let req =
+    request.from_uri(token_endpoint)
+    |> result.map_error(fn(_x) { InvalidUri })
   {
-    use request <- result.map(request.from_uri(server))
-    request
-    |> request.set_method(http.Post)
-    |> request.set_header("content-type", "application/x-www-form-urlencoded")
-    |> request.set_body(body)
-    |> add_authentication_to_request(client_auth)
+    use req <- result.map(req)
+    let req =
+      req
+      |> request.set_method(http.Post)
+      |> request.set_header("content-type", "application/x-www-form-urlencoded")
+    use auth_location <- result.map(create_authentication(client_auth))
+    case auth_location {
+      Header(key, value) ->
+        req
+        |> request.set_header(key, value)
+        |> request.set_body(uri.query_to_string(body))
+      Body(values) ->
+        list.append(values, body)
+        |> uri.query_to_string()
+        |> request.set_body(req, _)
+    }
   }
-  |> result.map_error(fn(_x) { InvalidUri })
   |> result.flatten()
 }
 
-fn add_authentication_to_request(
-  req: request.Request(String),
+fn create_authentication(
   auth: ClientAuthentication,
-) -> Result(request.Request(String), Error) {
+) -> Result(AuthLocation, Error) {
   case auth {
     ClientSecretBasic(client_id, client_secret) -> {
       client_secret
@@ -193,7 +204,7 @@ fn add_authentication_to_request(
           { client_id.value <> ":" <> client_secret.value }
           |> bit_array.from_string()
           |> bit_array.base64_encode(False)
-        request.set_header(req, "authentication", "Basic " <> encoded)
+        Header("authentication", "Basic " <> encoded)
         |> Ok()
       })
     }
@@ -201,27 +212,15 @@ fn add_authentication_to_request(
       client_secret
       |> secret_is_valid()
       |> bool.guard(Error(SecretExpired), fn() {
-        req
-        |> request.set_body(
-          uri.query_to_string([
-            #("client_id", client_id.value),
-            #("client_secret", client_secret.value),
-            ..uri.parse_query(req.body)
-            |> result.unwrap([])
-          ]),
-        )
+        Body([
+          #("client_id", client_id.value),
+          #("client_secret", client_secret.value),
+        ])
         |> Ok()
       })
     }
     PublicAuthentication(client_id) ->
-      req
-      |> request.set_body(
-        uri.query_to_string([
-          #("client_id", client_id.value),
-          ..uri.parse_query(req.body)
-          |> result.unwrap([])
-        ]),
-      )
+      Body([#("client_id", client_id.value)])
       |> Ok()
   }
 }
