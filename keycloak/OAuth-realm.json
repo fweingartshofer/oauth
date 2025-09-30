@@ -1,0 +1,36 @@
+
+{
+  "realm": "OAuth",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "credentials-client",
+      "name": "OAuth Client Credentials Client",
+      "surrogateAuthRequired": false,
+      "enabled": true,
+      "clientAuthenticatorType": "client-secret",
+      "secret": "client-secret",
+      "bearerOnly": false,
+      "consentRequired": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": true,
+      "publicClient": false,
+      "frontchannelLogout": true,
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "optionalClientScopes": [
+        "offline_access",
+        "roles:create",
+        "registered-entities:create"
+      ],
+      "access": {
+        "view": true,
+        "configure": true,
+        "manage": true
+      }
+    }
+  ]
+}

@@ -3,7 +3,9 @@ import glacier/should
 import gleam/http
 import gleam/http/request
 import gleam/http/response
+import gleam/httpc
 import gleam/option
+import gleam/result
 import gleam/string
 import gleam/time/duration
 import gleam/time/timestamp
@@ -269,6 +271,98 @@ pub fn to_http_request_for_resource_owner_request_test() {
   let res = oauth2.to_http_request(token_request)
   // Then
   res |> should.equal(Ok(expected))
+}
+
+pub fn to_http_request_for_client_credentials_request_test() {
+  // Given
+  let assert Ok(server) = uri.parse("https://example.com/oauth2/")
+  let token_request =
+    oauth2.ClientCredentialsGrantTokenRequest(
+      server,
+      oauth2.ClientSecretBasic(oauth2.ClientId("test"), oauth2.Secret("test")),
+      ["scope1"],
+    )
+  let expected =
+    request.Request(
+      method: http.Post,
+      headers: [
+        #("content-type", "application/x-www-form-urlencoded"),
+        #("authentication", "Basic dGVzdDp0ZXN0"),
+      ],
+      body: "scope=scope1&grant_type=client_credentials",
+      scheme: http.Https,
+      host: "example.com",
+      port: option.None,
+      path: "/oauth2/",
+      query: option.None,
+    )
+
+  // When
+  let res = oauth2.to_http_request(token_request)
+  // Then
+  res |> should.equal(Ok(expected))
+}
+
+pub fn to_http_request_for_client_credentials_request_without_scopes_test() {
+  // Given
+  let assert Ok(server) = uri.parse("https://example.com/oauth2/")
+  let token_request =
+    oauth2.ClientCredentialsGrantTokenRequest(
+      server,
+      oauth2.ClientSecretBasic(oauth2.ClientId("test"), oauth2.Secret("test")),
+      [],
+    )
+  let expected =
+    request.Request(
+      method: http.Post,
+      headers: [
+        #("content-type", "application/x-www-form-urlencoded"),
+        #("authentication", "Basic dGVzdDp0ZXN0"),
+      ],
+      body: "grant_type=client_credentials",
+      scheme: http.Https,
+      host: "example.com",
+      port: option.None,
+      path: "/oauth2/",
+      query: option.None,
+    )
+
+  // When
+  let res = oauth2.to_http_request(token_request)
+  // Then
+  res |> should.equal(Ok(expected))
+}
+
+pub fn client_credential_grant_retrieves_tokens_test() {
+  // Given
+  let assert Ok(server) =
+    uri.parse(
+      "http://localhost:8080/realms/OAuth/protocol/openid-connect/token",
+    )
+  let token_request =
+    oauth2.ClientCredentialsGrantTokenRequest(
+      server,
+      oauth2.ClientSecretPost(
+        oauth2.ClientId("credentials-client"),
+        oauth2.Secret("client-secret"),
+      ),
+      ["openid"],
+    )
+  let assert Ok(req) = oauth2.to_http_request(token_request)
+
+  // When
+  let res = httpc.send(req)
+
+  // Then
+  let token_response =
+    res
+    |> should.be_ok()
+    |> oauth2.parse_token_response()
+    |> should.be_ok()
+  case token_response {
+    oauth2.AccessTokenResponse(_, _, _, _, _) -> should.be_true(True)
+    _ -> should.fail()
+  }
 }
 
 pub fn parse_token_response_with_valid_response_all_fields_test() {

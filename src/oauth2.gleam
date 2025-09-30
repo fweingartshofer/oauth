@@ -56,6 +56,11 @@ pub type TokenRequest {
     refresh_token: String,
     scope: Scope,
   )
+  ClientCredentialsGrantTokenRequest(
+    token_endpoint: uri.Uri,
+    authentication: ClientAuthentication,
+    scope: Scope,
+  )
 }
 
 pub type ClientAuthentication {
@@ -136,24 +141,22 @@ pub fn to_http_request(
       password: password,
       scope: scope,
     ) -> {
-      let scope = case list.is_empty(scope) {
-        False -> option.Some(#("scope", scope |> string.join(" ")))
-        True -> option.None
-      }
       [
         #("grant_type", "password"),
         #("username", username),
         #("password", password),
       ]
-      |> add_if_present(scope)
+      |> add_scope(scope)
     }
     RefreshTokenGrantRequest(_server, _client_auth, refresh_token, scope) -> {
-      let scope = case list.is_empty(scope) {
-        False -> option.Some(#("scope", scope |> string.join(" ")))
-        True -> option.None
-      }
       [#("grant_type", "refresh_token"), #("refresh_token", refresh_token)]
-      |> add_if_present(scope)
+      |> add_scope(scope)
+    }
+    ClientCredentialsGrantTokenRequest(_server, _client_auth, scope) -> {
+      [
+        #("grant_type", "client_credentials"),
+      ]
+      |> add_scope(scope)
     }
   }
   |> setup_request(
@@ -161,6 +164,17 @@ pub fn to_http_request(
     body: _,
     client_auth: request.authentication,
   )
+}
+
+fn add_scope(
+  d: List(#(String, String)),
+  scope: Scope,
+) -> List(#(String, String)) {
+  case list.is_empty(scope) {
+    False -> option.Some(#("scope", scope |> string.join(" ")))
+    True -> option.None
+  }
+  |> add_if_present(d, _)
 }
 
 fn setup_request(
