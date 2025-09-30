@@ -5,7 +5,6 @@ import gleam/http/request
 import gleam/http/response
 import gleam/httpc
 import gleam/option
-import gleam/result
 import gleam/string
 import gleam/time/duration
 import gleam/time/timestamp
