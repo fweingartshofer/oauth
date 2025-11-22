@@ -70,10 +70,21 @@ pub fn make_redirect_uri_test() {
   // Given
   let assert Ok(u) = uri.parse("https://example.com/oauth2/?q=asdf")
   let response_type = oauth2.Code
-  let assert Ok(redirect_uri) = uri.parse("http://localhost:8080/callback")
+  let redirect_uri =
+    uri.parse("http://localhost:8080/callback") |> option.from_result
   let client_id = oauth2.ClientId("client-id")
   let scope = ["scope1", "scope2"]
-  let state = oauth2.State("state")
+  let state = option.Some(oauth2.State("state"))
+  let redirect_config =
+    oauth2.AuthorizationCodeGrantRedirectUriWithPKCE(
+      u,
+      response_type,
+      redirect_uri,
+      client_id,
+      scope,
+      state,
+      "asdf",
+    )
   let expected =
     uri.Uri(
       scheme: option.Some("https"),
@@ -82,21 +93,13 @@ pub fn make_redirect_uri_test() {
       port: option.None,
       path: "/oauth2/",
       query: option.Some(
-        "state=state&redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback&response_type=code&client_id=client-id&scope=scope1%20scope2",
+        "code_challenge=asdf&state=state&redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback&response_type=code&client_id=client-id&scope=scope1%20scope2",
       ),
       fragment: option.None,
     )
 
   // When
-  let res =
-    oauth2.make_redirect_uri(
-      u,
-      response_type,
-      option.Some(redirect_uri),
-      client_id,
-      scope,
-      option.Some(state),
-    )
+  let res = oauth2.make_redirect_uri(redirect_config)
 
   // Then
   res |> should.equal(expected)
@@ -121,6 +124,39 @@ pub fn to_http_request_for_auth_basic_test() {
         #("authentication", "Basic dGVzdDp0ZXN0"),
       ],
       body: "redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback&grant_type=authorization_code&code=asdf",
+      scheme: http.Https,
+      host: "example.com",
+      port: option.None,
+      path: "/oauth2/",
+      query: option.None,
+    )
+
+  // When
+  let res = oauth2.to_http_request(token_request)
+  // Then
+  res |> should.equal(Ok(expected))
+}
+
+pub fn to_http_request_with_pkce_test() {
+  // Given
+  let assert Ok(server) = uri.parse("https://example.com/oauth2/")
+  let assert Ok(redirect_uri) = uri.parse("http://localhost:8080/callback")
+  let token_request =
+    oauth2.AuthorizationCodeGrantTokenRequestWithPKCE(
+      server,
+      oauth2.ClientSecretBasic(oauth2.ClientId("test"), oauth2.Secret("test")),
+      option.Some(redirect_uri),
+      "asdf",
+      "code_verifier",
+    )
+  let expected =
+    request.Request(
+      method: http.Post,
+      headers: [
+        #("content-type", "application/x-www-form-urlencoded"),
+        #("authentication", "Basic dGVzdDp0ZXN0"),
+      ],
+      body: "redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback&grant_type=authorization_code&code=asdf&code_verifier=code_verifier",
       scheme: http.Https,
       host: "example.com",
       port: option.None,

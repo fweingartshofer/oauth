@@ -36,12 +36,39 @@ pub type State {
   State(value: String)
 }
 
+pub type AuthorizationCodeGrantRedirectUri {
+  AuthorizationCodeGrantRedirectUri(
+    oauth_server: uri.Uri,
+    response_type: ResponseType,
+    redirect_uri: option.Option(uri.Uri),
+    client_id: ClientId,
+    scope: Scope,
+    state: option.Option(State),
+  )
+  AuthorizationCodeGrantRedirectUriWithPKCE(
+    oauth_server: uri.Uri,
+    response_type: ResponseType,
+    redirect_uri: option.Option(uri.Uri),
+    client_id: ClientId,
+    scope: Scope,
+    state: option.Option(State),
+    code_challange: String,
+  )
+}
+
 pub type TokenRequest {
   AuthorizationCodeGrantTokenRequest(
     token_endpoint: uri.Uri,
     authentication: ClientAuthentication,
     redirect_uri: option.Option(uri.Uri),
     code: String,
+  )
+  AuthorizationCodeGrantTokenRequestWithPKCE(
+    token_endpoint: uri.Uri,
+    authentication: ClientAuthentication,
+    redirect_uri: option.Option(uri.Uri),
+    code: String,
+    code_verifier: String,
   )
   ResourceOwnerCredentialsGrantTokenRequest(
     token_endpoint: uri.Uri,
@@ -97,25 +124,31 @@ type AuthLocation {
 
 /// Creates the uri that the resource owner should be redirected too.
 pub fn make_redirect_uri(
-  oauth_server server: uri.Uri,
-  response_type response_type: ResponseType,
-  redirect_uri redirect_uri: option.Option(uri.Uri),
-  client_id client_id: ClientId,
-  scope scope: Scope,
-  state state: option.Option(State),
+  redirect_config: AuthorizationCodeGrantRedirectUri,
 ) -> uri.Uri {
   let state =
-    state |> option.map(fn(x) { x.value }) |> option.map(wrap_tuple("state", _))
-  let redirect_uri = to_redirect_uri_query(redirect_uri)
+    redirect_config.state
+    |> option.map(fn(x) { x.value })
+    |> option.map(wrap_tuple("state", _))
+  let redirect_uri = to_redirect_uri_query(redirect_config.redirect_uri)
+  let code_callenge = case redirect_config {
+    AuthorizationCodeGrantRedirectUriWithPKCE(_, _, _, _, _, _, code_challenge) ->
+      option.Some(#("code_challenge", code_challenge))
+    _ -> option.None
+  }
   let queries =
     [
-      #("response_type", response_type_to_string(response_type)),
-      #("client_id", client_id.value),
-      #("scope", string.join(scope, " ")),
+      #("response_type", response_type_to_string(redirect_config.response_type)),
+      #("client_id", redirect_config.client_id.value),
+      #("scope", string.join(redirect_config.scope, " ")),
     ]
     |> add_if_present(redirect_uri)
     |> add_if_present(state)
-  uri.Uri(..server, query: option.Some(uri.query_to_string(queries)))
+    |> add_if_present(code_callenge)
+  uri.Uri(
+    ..redirect_config.oauth_server,
+    query: option.Some(uri.query_to_string(queries)),
+  )
 }
 
 /// Creates a http request from the given TokenRequest, but does not send.
@@ -132,6 +165,21 @@ pub fn to_http_request(
     ) -> {
       let redirect_uri = to_redirect_uri_query(redirect_uri)
       [#("grant_type", "authorization_code"), #("code", code)]
+      |> add_if_present(redirect_uri)
+    }
+    AuthorizationCodeGrantTokenRequestWithPKCE(
+      _server,
+      _client_auth,
+      redirect_uri,
+      code,
+      code_verifier,
+    ) -> {
+      let redirect_uri = to_redirect_uri_query(redirect_uri)
+      [
+        #("grant_type", "authorization_code"),
+        #("code", code),
+        #("code_verifier", code_verifier),
+      ]
       |> add_if_present(redirect_uri)
     }
     ResourceOwnerCredentialsGrantTokenRequest(
