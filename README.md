@@ -4,12 +4,12 @@ An oauth 2.0 library that does not assume anything.
 The library can be used to produce OAuth 2.0 requests and parse token responses.
 It produces gleam http requests and takes in gleam http responses.
 
-<!--[![Package Version](https://img.shields.io/hexpm/v/oauth2)](https://hex.pm/packages/oauth2)
-[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/oauth2/)
+[![Package Version](https://img.shields.io/hexpm/v/flwr_oauth2)](https://hex.pm/packages/flwr_oauth2)
+[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/flwr_oauth2/)
 
 ```sh
 gleam add oauth2@1
-```-->
+```
 
 ```gleam
 import oauth2
@@ -37,7 +37,7 @@ pub fn main() -> Nil {
 }
 ```
 
-<!--Further documentation can be found at <https://hexdocs.pm/oauth2>.-->
+Further documentation can be found at <https://hexdocs.pm/flwr_oauth2>
 
 ## Development
 

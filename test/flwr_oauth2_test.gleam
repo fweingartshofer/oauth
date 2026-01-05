@@ -1,5 +1,7 @@
+import flwr_oauth2 as oauth2
 import glacier
 import glacier/should
+import gleam/erlang/atom
 import gleam/http
 import gleam/http/request
 import gleam/http/response
@@ -9,7 +11,6 @@ import gleam/string
 import gleam/time/duration
 import gleam/time/timestamp
 import gleam/uri
-import oauth2
 
 pub fn main() -> Nil {
   glacier.main()
@@ -368,36 +369,39 @@ pub fn to_http_request_for_client_credentials_request_without_scopes_test() {
   res |> should.equal(Ok(expected))
 }
 
-pub fn client_credential_grant_retrieves_tokens_test() {
-  // Given
-  let assert Ok(server) =
-    uri.parse(
-      "http://localhost:8080/realms/OAuth/protocol/openid-connect/token",
-    )
-  let token_request =
-    oauth2.ClientCredentialsGrantTokenRequest(
-      server,
-      oauth2.ClientSecretPost(
-        oauth2.ClientId("credentials-client"),
-        oauth2.Secret("client-secret"),
-      ),
-      ["openid"],
-    )
-  let assert Ok(req) = oauth2.to_http_request(token_request)
+pub fn client_credential_grant_retrieves_tokens_test_() {
+  #(atom.create("timeout"), 60, fn() {
+    // Given
+    let assert Ok(server) =
+      uri.parse(
+        "http://localhost:8080/realms/OAuth/protocol/openid-connect/token",
+      )
 
-  // When
-  let res = httpc.send(req)
+    let token_request =
+      oauth2.ClientCredentialsGrantTokenRequest(
+        server,
+        oauth2.ClientSecretPost(
+          oauth2.ClientId("credentials-client"),
+          oauth2.Secret("client-secret"),
+        ),
+        ["openid"],
+      )
+    let assert Ok(req) = oauth2.to_http_request(token_request)
 
-  // Then
-  let token_response =
-    res
-    |> should.be_ok()
-    |> oauth2.parse_token_response()
-    |> should.be_ok()
-  case token_response {
-    oauth2.AccessTokenResponse(_, _, _, _, _) -> should.be_true(True)
-    _ -> should.fail()
-  }
+    // When
+    let res = httpc.send(req)
+
+    // Then
+    let token_response =
+      res
+      |> should.be_ok()
+      |> oauth2.parse_token_response()
+      |> should.be_ok()
+    case token_response {
+      oauth2.AccessTokenResponse(_, _, _, _, _) -> should.be_true(True)
+      _ -> should.fail()
+    }
+  })
 }
 
 pub fn parse_token_response_with_valid_response_all_fields_test() {

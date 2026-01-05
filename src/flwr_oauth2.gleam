@@ -15,28 +15,48 @@ import gleam/uri
 import gleam/yielder
 import prng/random
 
+/// Type to indicate the response type of the authorization code and implicit grant.
+/// Must always be "code" for the authorizatin code grant and alway be "token" for the implicit grant.
+/// For more information see [RFC6749](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.1).
 pub type ResponseType {
   Code
   Token
 }
 
+/// Type to indicate the client ID.
+/// Mostly used to have type-safe parameters, so client id, client secret, etc are not mixed up.
+/// See [RFC6749](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.1)
 pub type ClientId {
   ClientId(value: String)
 }
 
+/// Type to indicate the client secret.
+/// Mostly used to have type-safe parameters, so client id, client secret, etc are not mixed up.
+/// See [RFC6749](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.1)
 pub type Secret {
+  /// A normal OAuth 2.0 client secret
   Secret(value: String)
+  /// A client secret with an expiration date attached.
+  /// Can be used to check if the secret expired.
   SecretWithExpiration(value: String, expires_at: timestamp.Timestamp)
 }
 
+/// Type alias for the scope.
+/// A scope is a list of strings.
+/// See [RFC6749](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.1)
 pub type Scope =
   List(String)
 
+/// Type to indicate the state.
+/// Mostly used to have type-safe parameters, so other string parameters are not mixed up.
+/// See [RFC6749](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.1)
 pub type State {
   State(value: String)
 }
 
+/// This defines a redirect url defined by [RFC6749 Authorization Code Grant](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1).
 pub type AuthorizationCodeGrantRedirectUri {
+  /// Represents a standard redirect url without any extensions.
   AuthorizationCodeGrantRedirectUri(
     oauth_server: uri.Uri,
     response_type: ResponseType,
@@ -45,6 +65,8 @@ pub type AuthorizationCodeGrantRedirectUri {
     scope: Scope,
     state: option.Option(State),
   )
+  /// Represents a redirect url with a PKCE code challenge.
+  /// See [RFC7636](https://datatracker.ietf.org/doc/html/rfc7636).
   AuthorizationCodeGrantRedirectUriWithPKCE(
     oauth_server: uri.Uri,
     response_type: ResponseType,
@@ -52,17 +74,25 @@ pub type AuthorizationCodeGrantRedirectUri {
     client_id: ClientId,
     scope: Scope,
     state: option.Option(State),
-    code_challange: String,
+    code_challenge: String,
   )
 }
 
+/// The essential requests of OAuth 2.0.
+/// The token requests includes all the different Grant Types defined in [RFC6749](https://datatracker.ietf.org/doc/html/rfc6749).
 pub type TokenRequest {
+  /// A token request for the Authorization Code Grant Type.
+  /// Use the [`AuthorizationCodeGrantRedirectUri`](#AuthorizationCodeGrantRedirectUri) to retrieve the `code`.
+  /// See [RFC6749 Authorization Code Grant](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1).
   AuthorizationCodeGrantTokenRequest(
     token_endpoint: uri.Uri,
     authentication: ClientAuthentication,
     redirect_uri: option.Option(uri.Uri),
     code: String,
   )
+  /// A token request for the Authorization Code Grant Type with a PKCE code verifier.
+  /// Use the [`AuthorizationCodeGrantRedirectUri`](#AuthorizationCodeGrantRedirectUri) to retrieve the `code`.
+  /// See [RFC6749 Authorization Code Grant](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1) and [RFC7636](https://datatracker.ietf.org/doc/html/rfc7636).
   AuthorizationCodeGrantTokenRequestWithPKCE(
     token_endpoint: uri.Uri,
     authentication: ClientAuthentication,
@@ -70,6 +100,8 @@ pub type TokenRequest {
     code: String,
     code_verifier: String,
   )
+  /// A token request for the Resource Owner Password Grant Type.
+  /// See [RFC6749 Resource Owner Password Grant](https://datatracker.ietf.org/doc/html/rfc6749#section-4.3).
   ResourceOwnerCredentialsGrantTokenRequest(
     token_endpoint: uri.Uri,
     authentication: ClientAuthentication,
@@ -77,12 +109,18 @@ pub type TokenRequest {
     password: String,
     scope: Scope,
   )
+  /// This token request is used to refresh an expired access token.
+  /// After a successful token request, the OAuth 2.0 Server can respond with an access token and/or a refresh token.
+  /// The refresh token can be used to get a new access token.
+  /// See [RFC6749 Refreshing an Access Token](https://datatracker.ietf.org/doc/html/rfc6749#section-6).
   RefreshTokenGrantRequest(
     token_endpoint: uri.Uri,
     authentication: ClientAuthentication,
     refresh_token: String,
     scope: Scope,
   )
+  /// This token request is used to retrieve an access token using the client id and client secret.
+  /// See [RFC6749 Client Credentials Grant](https://datatracker.ietf.org/doc/html/rfc6749#section-4.4).
   ClientCredentialsGrantTokenRequest(
     token_endpoint: uri.Uri,
     authentication: ClientAuthentication,
@@ -90,24 +128,48 @@ pub type TokenRequest {
   )
 }
 
+/// The type of client authentication that should be used with the OAuth 2.0 Server.
+/// An OAuth 2.0 Server can support multiple kinds of client authentication.
+/// When the incorrect kind is used, the OAuth 2.0 Server will respond with an error.
+/// For the error information see [RFC6749 Error Response](https://datatracker.ietf.org/doc/html/rfc6749#section-7.2).
 pub type ClientAuthentication {
+  /// Use this type if the OAuth 2.0 Server accepts HTTP Basic authentication, which sets the `Authorization` header in the HTTP request.
+  /// For example:
+  /// ```
+  /// Authorization: Basic czZCaGRSa3F0Mzo3RmpmcDBaQnIxS3REUmJuZlZkbUl3
+  /// ```
   ClientSecretBasic(client_id: ClientId, client_secret: Secret)
+  /// Use this type if the OAuth 2.0 Server accepts the credentials via a POST request.
+  /// In that case the credentials are sent URL encoded.
+  /// For example:
+  /// ```
+  /// client_id=asdf&client_secret=hjkl
+  /// ```
   ClientSecretPost(client_id: ClientId, client_secret: Secret)
+  /// Use this type if the client is public and there is not client secret to be included.
   PublicAuthentication(client_id: ClientId)
 }
 
+/// Errors returned by this module
 pub type Error {
+  /// Will be returned if an expired secret is used.
   SecretExpired
+  /// Will be returned if an invalid URL is provided
   InvalidUri
 }
 
+/// This type is returned by this module for a parsed access token response.
 pub type AccessTokenResponse {
+  /// If the access token response contains errors a `TokenErrorResponse` will be returned.
+  /// It contains the HTTP status, the error code string, optionally an error description and an error URI.
   TokenErrorResponse(
     status: Int,
     error: String,
     error_description: option.Option(String),
     error_uri: option.Option(String),
   )
+  /// If the access token request was successful a `AccessTokenResponse` is returned.
+  /// it contains the access token, its type, the time when it will expire, a refresh token if present, and the final scope.
   AccessTokenResponse(
     access_token: String,
     token_type: String,
@@ -261,6 +323,7 @@ fn create_authentication(
     ClientSecretBasic(client_id, client_secret) -> {
       client_secret
       |> secret_is_valid()
+      |> bool.negate()
       |> bool.guard(Error(SecretExpired), fn() {
         let encoded =
           { client_id.value <> ":" <> client_secret.value }
@@ -273,6 +336,7 @@ fn create_authentication(
     ClientSecretPost(client_id, client_secret) -> {
       client_secret
       |> secret_is_valid()
+      |> bool.negate()
       |> bool.guard(Error(SecretExpired), fn() {
         Body([
           #("client_id", client_id.value),
@@ -363,6 +427,7 @@ pub fn secret_is_valid(secret: Secret) -> Bool {
     SecretWithExpiration(_, expires_at) ->
       timestamp.compare(expires_at, timestamp.system_time()) == order.Lt
   }
+  |> bool.negate()
 }
 
 /// Parses a string containing the space separated scopes.
