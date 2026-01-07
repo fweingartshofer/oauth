@@ -21,11 +21,7 @@
       "frontchannelLogout": true,
       "protocol": "openid-connect",
       "fullScopeAllowed": true,
-      "optionalClientScopes": [
-        "offline_access",
-        "roles:create",
-        "registered-entities:create"
-      ],
+      "optionalClientScopes": [],
       "access": {
         "view": true,
         "configure": true,
