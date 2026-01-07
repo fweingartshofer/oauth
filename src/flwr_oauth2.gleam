@@ -360,8 +360,8 @@ fn create_authentication(
         let encoded =
           { client_id.value <> ":" <> client_secret.value }
           |> bit_array.from_string()
-          |> bit_array.base64_encode(False)
-        Header("authentication", "Basic " <> encoded)
+          |> bit_array.base64_encode(True)
+        Header("authorization", "Basic " <> encoded)
         |> Ok()
       })
     }

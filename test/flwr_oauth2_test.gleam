@@ -123,7 +123,39 @@ pub fn to_http_request_for_auth_basic_test() {
       method: http.Post,
       headers: [
         #("content-type", "application/x-www-form-urlencoded"),
-        #("authentication", "Basic dGVzdDp0ZXN0"),
+        #("authorization", "Basic dGVzdDp0ZXN0"),
+      ],
+      body: "redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback&grant_type=authorization_code&code=asdf",
+      scheme: http.Https,
+      host: "example.com",
+      port: option.None,
+      path: "/oauth2/",
+      query: option.None,
+    )
+
+  // When
+  let res = oauth2.to_http_request(token_request)
+  // Then
+  res |> should.equal(Ok(expected))
+}
+
+pub fn to_http_request_for_auth_basic_pads_correctly_test() {
+  // Given
+  let assert Ok(server) = uri.parse("https://example.com/oauth2/")
+  let assert Ok(redirect_uri) = uri.parse("http://localhost:8080/callback")
+  let token_request =
+    oauth2.AuthorizationCodeGrantTokenRequest(
+      server,
+      oauth2.ClientSecretBasic(oauth2.ClientId("II"), oauth2.Secret("I")),
+      option.Some(redirect_uri),
+      "asdf",
+    )
+  let expected =
+    request.Request(
+      method: http.Post,
+      headers: [
+        #("content-type", "application/x-www-form-urlencoded"),
+        #("authorization", "Basic SUk6SQ=="),
       ],
       body: "redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback&grant_type=authorization_code&code=asdf",
       scheme: http.Https,
@@ -156,7 +188,7 @@ pub fn to_http_request_with_pkce_test() {
       method: http.Post,
       headers: [
         #("content-type", "application/x-www-form-urlencoded"),
-        #("authentication", "Basic dGVzdDp0ZXN0"),
+        #("authorization", "Basic dGVzdDp0ZXN0"),
       ],
       body: "redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback&grant_type=authorization_code&code=asdf&code_verifier=code_verifier",
       scheme: http.Https,
@@ -294,7 +326,7 @@ pub fn to_http_request_for_resource_owner_request_test() {
       method: http.Post,
       headers: [
         #("content-type", "application/x-www-form-urlencoded"),
-        #("authentication", "Basic dGVzdDp0ZXN0"),
+        #("authorization", "Basic dGVzdDp0ZXN0"),
       ],
       body: "scope=scope1&grant_type=password&username=username&password=password",
       scheme: http.Https,
@@ -324,7 +356,7 @@ pub fn to_http_request_for_client_credentials_request_test() {
       method: http.Post,
       headers: [
         #("content-type", "application/x-www-form-urlencoded"),
-        #("authentication", "Basic dGVzdDp0ZXN0"),
+        #("authorization", "Basic dGVzdDp0ZXN0"),
       ],
       body: "scope=scope1&grant_type=client_credentials",
       scheme: http.Https,
@@ -354,7 +386,7 @@ pub fn to_http_request_for_client_credentials_request_without_scopes_test() {
       method: http.Post,
       headers: [
         #("content-type", "application/x-www-form-urlencoded"),
-        #("authentication", "Basic dGVzdDp0ZXN0"),
+        #("authorization", "Basic dGVzdDp0ZXN0"),
       ],
       body: "grant_type=client_credentials",
       scheme: http.Https,
@@ -371,7 +403,7 @@ pub fn to_http_request_for_client_credentials_request_without_scopes_test() {
 }
 
 pub fn client_credential_grant_retrieves_tokens_test_() {
-  #(atom.create("timeout"), 5, fn() {
+  #(atom.create("timeout"), 60, fn() {
     // Given
     let assert Ok(server) =
       uri.parse(
