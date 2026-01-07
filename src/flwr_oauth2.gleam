@@ -1,3 +1,4 @@
+import flwr_oauth2/helpers.{add_if_present}
 import gleam/bit_array
 import gleam/bool
 import gleam/dynamic/decode
@@ -13,7 +14,6 @@ import gleam/string
 import gleam/time/timestamp
 import gleam/uri
 import gleam/yielder
-import helpers.{add_if_present}
 import prng/random
 
 /// Type to indicate the response type of the authorization code and implicit grant.

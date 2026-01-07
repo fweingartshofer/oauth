@@ -1,8 +1,8 @@
 import flwr_oauth2
+import flwr_oauth2/helpers.{add_if_present}
 import gleam/http/request
 import gleam/option
 import gleam/uri
-import helpers.{add_if_present}
 
 /// Defines a [RFC7009 Revocation Request](https://datatracker.ietf.org/doc/html/rfc7009#section-2.1).
 pub type RevocationRequest {

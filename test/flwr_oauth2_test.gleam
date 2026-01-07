@@ -402,39 +402,37 @@ pub fn to_http_request_for_client_credentials_request_without_scopes_test() {
   res |> should.equal(Ok(expected))
 }
 
-pub fn client_credential_grant_retrieves_tokens_test_() {
-  #(atom.create("timeout"), 60, fn() {
-    // Given
-    let assert Ok(server) =
-      uri.parse(
-        "http://localhost:8080/realms/OAuth/protocol/openid-connect/token",
-      )
+pub fn client_credential_grant_retrieves_tokens_test() {
+  // Given
+  let assert Ok(server) =
+    uri.parse(
+      "http://localhost:8080/realms/OAuth/protocol/openid-connect/token",
+    )
 
-    let token_request =
-      oauth2.ClientCredentialsGrantTokenRequest(
-        server,
-        oauth2.ClientSecretPost(
-          oauth2.ClientId("credentials-client"),
-          oauth2.Secret("client-secret"),
-        ),
-        ["openid"],
-      )
-    let assert Ok(req) = oauth2.to_http_request(token_request)
+  let token_request =
+    oauth2.ClientCredentialsGrantTokenRequest(
+      server,
+      oauth2.ClientSecretPost(
+        oauth2.ClientId("credentials-client"),
+        oauth2.Secret("client-secret"),
+      ),
+      ["openid"],
+    )
+  let assert Ok(req) = oauth2.to_http_request(token_request)
 
-    // When
-    let res = httpc.send(req)
+  // When
+  let res = httpc.send(req)
 
-    // Then
-    let token_response =
-      res
-      |> should.be_ok()
-      |> oauth2.parse_token_response()
-      |> should.be_ok()
-    case token_response {
-      oauth2.AccessTokenResponse(_, _, _, _, _) -> should.be_true(True)
-      _ -> should.fail()
-    }
-  })
+  // Then
+  let token_response =
+    res
+    |> should.be_ok()
+    |> oauth2.parse_token_response()
+    |> should.be_ok()
+  case token_response {
+    oauth2.AccessTokenResponse(_, _, _, _, _) -> should.be_true(True)
+    _ -> should.fail()
+  }
 }
 
 pub fn parse_token_response_with_valid_response_all_fields_test() {
