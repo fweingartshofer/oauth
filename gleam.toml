@@ -1,5 +1,5 @@
 name = "flwr_oauth2"
-version = "1.0.1"
+version = "1.0.2"
 
 description = "A small, focused OAuth 2.0 library for Gleam designed to cover the most common authorization flows without the complexity of larger frameworks."
 licences = ["MIT"]

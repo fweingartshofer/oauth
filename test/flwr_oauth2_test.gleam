@@ -85,6 +85,7 @@ pub fn make_redirect_uri_test() {
       scope,
       state,
       "asdf",
+      oauth2.S256,
     )
   let expected =
     uri.Uri(
@@ -94,7 +95,7 @@ pub fn make_redirect_uri_test() {
       port: option.None,
       path: "/oauth2/",
       query: option.Some(
-        "code_challenge=asdf&state=state&redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback&response_type=code&client_id=client-id&scope=scope1%20scope2",
+        "code_challenge=asdf&code_challenge_method=S256&state=state&redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback&response_type=code&client_id=client-id&scope=scope1%20scope2",
       ),
       fragment: option.None,
     )

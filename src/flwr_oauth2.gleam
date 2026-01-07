@@ -75,7 +75,15 @@ pub type AuthorizationCodeGrantRedirectUri {
     scope: Scope,
     state: option.Option(State),
     code_challenge: String,
+    code_challenge_method: CodeChallengeMethod,
   )
+}
+
+/// The kind of code challenge method used for the PKCE extension.
+/// See [RFC7636 Client Creates Code Challenge](https://datatracker.ietf.org/doc/html/rfc7636#section-4.2)
+pub type CodeChallengeMethod {
+  Plain
+  S256
 }
 
 /// The essential requests of OAuth 2.0.
@@ -194,8 +202,23 @@ pub fn make_redirect_uri(
     |> option.map(wrap_tuple("state", _))
   let redirect_uri = to_redirect_uri_query(redirect_config.redirect_uri)
   let code_callenge = case redirect_config {
-    AuthorizationCodeGrantRedirectUriWithPKCE(_, _, _, _, _, _, code_challenge) ->
-      option.Some(#("code_challenge", code_challenge))
+    AuthorizationCodeGrantRedirectUriWithPKCE(
+      _,
+      _,
+      _,
+      _,
+      _,
+      _,
+      code_challenge,
+      method,
+    ) ->
+      option.Some([
+        #("code_challenge", code_challenge),
+        #("code_challenge_method", case method {
+          Plain -> "plain"
+          S256 -> "S256"
+        }),
+      ])
     _ -> option.None
   }
   let queries =
@@ -206,7 +229,7 @@ pub fn make_redirect_uri(
     ]
     |> add_if_present(redirect_uri)
     |> add_if_present(state)
-    |> add_if_present(code_callenge)
+    |> add_many_if_present(code_callenge)
   uri.Uri(
     ..redirect_config.oauth_server,
     query: option.Some(uri.query_to_string(queries)),
@@ -477,6 +500,12 @@ fn string_not_empty(l: String) -> Bool {
 fn add_if_present(d: List(a), value: option.Option(a)) -> List(a) {
   value
   |> option.map(list.wrap)
+  |> option.unwrap([])
+  |> list.append(d)
+}
+
+fn add_many_if_present(d: List(a), value: option.Option(List(a))) -> List(a) {
+  value
   |> option.unwrap([])
   |> list.append(d)
 }
