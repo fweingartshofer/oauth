@@ -9,7 +9,7 @@ Use whatever http client you prefer for either javascript or erlang.
 [![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/flwr_oauth2/)
 
 ```sh
-gleam add oauth2@1
+gleam add flwr_oauth2@1.1.0
 ```
 
 ```gleam
