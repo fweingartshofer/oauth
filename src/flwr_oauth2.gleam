@@ -13,6 +13,7 @@ import gleam/string
 import gleam/time/timestamp
 import gleam/uri
 import gleam/yielder
+import helpers.{add_if_present}
 import prng/random
 
 /// Type to indicate the response type of the authorization code and implicit grant.
@@ -187,8 +188,12 @@ pub type AccessTokenResponse {
   )
 }
 
+/// This type defines the credentials and where in the request they should be inserted.
 type AuthLocation {
+  /// Insert the OAuth 2.0 client credentials into the Header as `Authorization: Basic base64(clientId:clientSecret)` or `Authorization: Basic clientId:clientSecret`.
   Header(key: String, value: String)
+  /// Insert the OAuth 2.0 client credentials into the request body as `client_id=<clientId>&client_secret=<clientSecret>`.
+  /// Will not include the client secret for public clients.
   Body(value: List(#(String, String)))
 }
 
@@ -293,7 +298,7 @@ pub fn to_http_request(
     }
   }
   |> setup_request(
-    token_endpoint: request.token_endpoint,
+    endpoint: request.token_endpoint,
     body: _,
     client_auth: request.authentication,
   )
@@ -310,13 +315,15 @@ fn add_scope(
   |> add_if_present(d, _)
 }
 
-fn setup_request(
-  token_endpoint token_endpoint: uri.Uri,
+/// A helper function that maps a general request with credentials to a gleam http request.
+/// The credentials are either attached to the request body URL encoded or added as basic `authorization` header.
+pub fn setup_request(
+  endpoint endpoint: uri.Uri,
   body body: List(#(String, String)),
   client_auth client_auth: ClientAuthentication,
 ) -> Result(request.Request(String), Error) {
   let req =
-    request.from_uri(token_endpoint)
+    request.from_uri(endpoint)
     |> result.map_error(fn(_x) { InvalidUri })
   {
     use req <- result.map(req)
@@ -339,6 +346,8 @@ fn setup_request(
   |> result.flatten()
 }
 
+/// Encodes the ClientAuthentication that is to be sent to the OAuth 2.0 Server.
+/// For Basic Authentication it will always encode it with base64.
 fn create_authentication(
   auth: ClientAuthentication,
 ) -> Result(AuthLocation, Error) {
@@ -495,13 +504,6 @@ fn response_type_to_string(response_type: ResponseType) {
 
 fn string_not_empty(l: String) -> Bool {
   !string.is_empty(l)
-}
-
-fn add_if_present(d: List(a), value: option.Option(a)) -> List(a) {
-  value
-  |> option.map(list.wrap)
-  |> option.unwrap([])
-  |> list.append(d)
 }
 
 fn add_many_if_present(d: List(a), value: option.Option(List(a))) -> List(a) {

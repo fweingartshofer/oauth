@@ -371,7 +371,7 @@ pub fn to_http_request_for_client_credentials_request_without_scopes_test() {
 }
 
 pub fn client_credential_grant_retrieves_tokens_test_() {
-  #(atom.create("timeout"), 60, fn() {
+  #(atom.create("timeout"), 5, fn() {
     // Given
     let assert Ok(server) =
       uri.parse(
