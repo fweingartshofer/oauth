@@ -3,6 +3,7 @@
 An oauth 2.0 library that does not assume anything.
 The library can be used to produce OAuth 2.0 requests and parse token responses.
 It produces gleam http requests and takes in gleam http responses.
+Use whatever http client you prefer for either javascript or erlang.
 
 [![Package Version](https://img.shields.io/hexpm/v/flwr_oauth2)](https://hex.pm/packages/flwr_oauth2)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/flwr_oauth2/)
