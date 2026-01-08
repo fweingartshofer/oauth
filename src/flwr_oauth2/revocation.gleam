@@ -1,6 +1,7 @@
-import flwr_oauth2
+import flwr_oauth2 as oauth
 import flwr_oauth2/helpers.{add_if_present}
 import gleam/http/request
+import gleam/http/response
 import gleam/option
 import gleam/uri
 
@@ -10,7 +11,7 @@ pub type RevocationRequest {
     oauth_server: uri.Uri,
     token: String,
     token_type_hint: option.Option(TokenTypeHint),
-    credentials: flwr_oauth2.ClientAuthentication,
+    credentials: oauth.ClientAuthentication,
   )
 }
 
@@ -26,9 +27,14 @@ pub type TokenTypeHint {
   Other(hint: String)
 }
 
+pub type RevocationResponse {
+  RevocationResponse
+}
+
+/// Formats a revocation request into a valid gleam http request.
 pub fn to_http_request(
   revocation_request revocation_request: RevocationRequest,
-) -> Result(request.Request(String), flwr_oauth2.Error) {
+) -> Result(request.Request(String), oauth.RequestError) {
   let hint = {
     use hint <- option.map(revocation_request.token_type_hint)
     let token_type = case hint {
@@ -41,9 +47,21 @@ pub fn to_http_request(
   let body =
     [#("token", revocation_request.token)]
     |> add_if_present(hint)
-  flwr_oauth2.setup_request(
+  oauth.setup_request(
     endpoint: revocation_request.oauth_server,
     body: body,
     client_auth: revocation_request.credentials,
   )
+}
+
+/// Parses a revocation response as defined in [RFC7009](https://datatracker.ietf.org/doc/html/rfc7009#section-2.2).
+/// If the response status is 200 the body is ignored.
+/// Any other status code is an error response and will be parsed accordingly.
+pub fn parse_revocation_response(
+  revocation_response: response.Response(String),
+) -> Result(RevocationResponse, oauth.ResponseError) {
+  case revocation_response.status {
+    200 -> Ok(RevocationResponse)
+    _ -> oauth.parse_error_response(revocation_response) |> Error()
+  }
 }

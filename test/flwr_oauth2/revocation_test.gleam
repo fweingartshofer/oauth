@@ -4,6 +4,7 @@ import glacier
 import glacier/should
 import gleam/http
 import gleam/http/request
+import gleam/http/response
 import gleam/option
 import gleam/uri
 
@@ -41,5 +42,40 @@ pub fn to_http_request_with_revocation_of_access_token_test() {
   // Then
   res
   |> should.be_ok()
+  |> should.equal(expected)
+}
+
+pub fn parse_revocation_response_with_success_response_test() {
+  // Given
+  let resp = response.new(200) |> response.set_body("ignored body")
+
+  // When
+  let res = revocation.parse_revocation_response(resp)
+
+  // Then
+  res
+  |> should.be_ok()
+  |> should.equal(revocation.RevocationResponse)
+}
+
+pub fn parse_revocation_response_with_error_response_test() {
+  // Given
+  let expected =
+    oauth.ErrorResponse(
+      400,
+      "unsupported_token_type",
+      option.Some("This token type is not supported"),
+      option.Some("https://example.com"),
+    )
+  let body =
+    "{\"error\": \"unsupported_token_type\", \"error_description\": \"This token type is not supported\", \"error_uri\": \"https://example.com\"}"
+  let resp = response.new(400) |> response.set_body(body)
+
+  // When
+  let res = revocation.parse_revocation_response(resp)
+
+  // Then
+  res
+  |> should.be_error()
   |> should.equal(expected)
 }
