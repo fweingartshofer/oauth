@@ -1,7 +1,6 @@
 import flwr_oauth2 as oauth2
 import glacier
 import glacier/should
-import gleam/erlang/atom
 import gleam/http
 import gleam/http/request
 import gleam/http/response
@@ -424,15 +423,10 @@ pub fn client_credential_grant_retrieves_tokens_test() {
   let res = httpc.send(req)
 
   // Then
-  let token_response =
-    res
-    |> should.be_ok()
-    |> oauth2.parse_token_response()
-    |> should.be_ok()
-  case token_response {
-    oauth2.AccessTokenResponse(_, _, _, _, _) -> should.be_true(True)
-    _ -> should.fail()
-  }
+  res
+  |> should.be_ok()
+  |> oauth2.parse_token_response()
+  |> should.be_ok()
 }
 
 pub fn parse_token_response_with_valid_response_all_fields_test() {
@@ -483,7 +477,7 @@ pub fn parse_token_response_with_error_response_test() {
     "{\"error\": \"invalid_request\", \"error_description\": \"Invalid Request\", \"error_uri\": \"https://example.com\"}"
   let resp = response.Response(status: 400, headers: [], body: json)
   let expected =
-    oauth2.TokenErrorResponse(
+    oauth2.ErrorResponse(
       status: 400,
       error: "invalid_request",
       error_description: option.Some("Invalid Request"),
@@ -494,5 +488,5 @@ pub fn parse_token_response_with_error_response_test() {
   let res = oauth2.parse_token_response(resp)
 
   // Then
-  res |> should.equal(Ok(expected))
+  res |> should.equal(Error(expected))
 }

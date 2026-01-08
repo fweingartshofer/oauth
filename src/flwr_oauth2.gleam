@@ -159,24 +159,30 @@ pub type ClientAuthentication {
   PublicAuthentication(client_id: ClientId)
 }
 
-/// Errors returned by this module
-pub type Error {
+/// Errors returned by this module when creating requests
+pub type RequestError {
   /// Will be returned if an expired secret is used.
   SecretExpired
   /// Will be returned if an invalid URL is provided
   InvalidUri
 }
 
-/// This type is returned by this module for a parsed access token response.
-pub type AccessTokenResponse {
-  /// If the access token response contains errors a `TokenErrorResponse` will be returned.
+/// Errors returned by this module when parsing responses, such as token responses from the OAuth 2.0 server.
+pub type ResponseError {
+  /// If the response contains errors a `ErrorResponse` will be returned.
   /// It contains the HTTP status, the error code string, optionally an error description and an error URI.
-  TokenErrorResponse(
+  ErrorResponse(
     status: Int,
     error: String,
     error_description: option.Option(String),
     error_uri: option.Option(String),
   )
+  /// If the response does not contain valid JSON or does not conform to the error response format defined by [RFC6749 Error Response](https://datatracker.ietf.org/doc/html/rfc6749#section-5.2) this error will be returned.
+  ParseError(error: json.DecodeError)
+}
+
+/// This type is returned by this module for a parsed access token response.
+pub type AccessTokenResponse {
   /// If the access token request was successful a `AccessTokenResponse` is returned.
   /// it contains the access token, its type, the time when it will expire, a refresh token if present, and the final scope.
   AccessTokenResponse(
@@ -245,7 +251,7 @@ pub fn make_redirect_uri(
 /// Sending the request is done by the user of the function.
 pub fn to_http_request(
   request: TokenRequest,
-) -> Result(request.Request(String), Error) {
+) -> Result(request.Request(String), RequestError) {
   case request {
     AuthorizationCodeGrantTokenRequest(
       _server,
@@ -321,7 +327,7 @@ pub fn setup_request(
   endpoint endpoint: uri.Uri,
   body body: List(#(String, String)),
   client_auth client_auth: ClientAuthentication,
-) -> Result(request.Request(String), Error) {
+) -> Result(request.Request(String), RequestError) {
   let req =
     request.from_uri(endpoint)
     |> result.map_error(fn(_x) { InvalidUri })
@@ -350,7 +356,7 @@ pub fn setup_request(
 /// For Basic Authentication it will always encode it with base64.
 fn create_authentication(
   auth: ClientAuthentication,
-) -> Result(AuthLocation, Error) {
+) -> Result(AuthLocation, RequestError) {
   case auth {
     ClientSecretBasic(client_id, client_secret) -> {
       client_secret
@@ -386,16 +392,16 @@ fn create_authentication(
 /// Parses a token response and returns the access and refresh token if valid response, otherwise the error response.
 pub fn parse_token_response(
   response: response.Response(String),
-) -> Result(AccessTokenResponse, json.DecodeError) {
+) -> Result(AccessTokenResponse, ResponseError) {
   case response.status {
     200 -> parse_token_success_response(response)
-    _ -> parse_token_error_response(response)
+    _ -> parse_error_response(response) |> Error()
   }
 }
 
 fn parse_token_success_response(
   response: response.Response(String),
-) -> Result(AccessTokenResponse, json.DecodeError) {
+) -> Result(AccessTokenResponse, ResponseError) {
   let token_decoder = {
     use access_token <- decode.field("access_token", decode.string)
     use token_type <- decode.field("token_type", decode.string)
@@ -424,11 +430,13 @@ fn parse_token_success_response(
     ))
   }
   json.parse(from: response.body, using: token_decoder)
+  |> result.map_error(ParseError)
 }
 
-fn parse_token_error_response(
+/// Parses an OAuth 2.0 error response defined in [RFC6749 Error Response](https://datatracker.ietf.org/doc/html/rfc6749#section-5.2).
+pub fn parse_error_response(
   response: response.Response(String),
-) -> Result(AccessTokenResponse, json.DecodeError) {
+) -> ResponseError {
   let error_decoder = {
     use error <- decode.field("error", decode.string)
     use error_description <- decode.optional_field(
@@ -441,7 +449,7 @@ fn parse_token_error_response(
       option.None,
       decode.optional(decode.string),
     )
-    decode.success(TokenErrorResponse(
+    decode.success(ErrorResponse(
       status: response.status,
       error: error,
       error_description: error_description,
@@ -449,6 +457,8 @@ fn parse_token_error_response(
     ))
   }
   json.parse(from: response.body, using: error_decoder)
+  |> result.map_error(ParseError)
+  |> result.unwrap_both()
 }
 
 /// Checks if a given secret is not expired.
