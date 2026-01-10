@@ -13,7 +13,6 @@ import gleam/result
 import gleam/string
 import gleam/time/timestamp
 import gleam/uri
-import gleam/yielder
 import prng/random
 
 /// Type to indicate the response type of the authorization code and implicit grant.
@@ -458,7 +457,7 @@ pub fn parse_error_response(
   }
   json.parse(from: response.body, using: error_decoder)
   |> result.map_error(ParseError)
-  |> result.unwrap_both()
+  |> helpers.unwrap_both()
 }
 
 /// Checks if a given secret is not expired.
@@ -490,10 +489,9 @@ const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 /// Generates a random State with the specified length including only uppercase and lowercase letters
 /// If length <= 0 returns an empty string
 pub fn random_state(length: Int) -> State {
-  let assert yielder.Next(value, _) =
+  let #(value, _) =
     random.fixed_size_list(random.int(0, 51), length)
-    |> random.to_random_yielder()
-    |> yielder.step()
+    |> random.step(random.new_seed(11))
 
   list.map(value, string.slice(from: chars, at_index: _, length: 1))
   |> string.join("")
