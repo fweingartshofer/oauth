@@ -15,6 +15,9 @@ import gleam/time/timestamp
 import gleam/uri
 import prng/random
 
+/// Name for the HTTP Authorization Header
+pub const authorization_header = "authorization"
+
 /// Type to indicate the response type of the authorization code and implicit grant.
 /// Must always be "code" for the authorizatin code grant and alway be "token" for the implicit grant.
 /// For more information see [RFC6749](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.1).
@@ -366,7 +369,7 @@ fn create_authentication(
           { client_id.value <> ":" <> client_secret.value }
           |> bit_array.from_string()
           |> bit_array.base64_encode(True)
-        Header("authorization", "Basic " <> encoded)
+        Header(authorization_header, "Basic " <> encoded)
         |> Ok()
       })
     }
