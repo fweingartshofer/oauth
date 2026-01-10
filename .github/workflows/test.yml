@@ -22,4 +22,6 @@ jobs:
           # elixir-version: "1"
       - run: gleam deps download
       - run: gleam test
+        env:
+          ENABLE_INTEGRATION_TESTS: true
       - run: gleam format --check src test
