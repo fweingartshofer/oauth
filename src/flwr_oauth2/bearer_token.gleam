@@ -1,3 +1,5 @@
+//// This module aims to fulfill most of [RFC6750](https://datatracker.ietf.org/doc/html/rfc6750) for attaching an access token to an HTTP request to a protected resource.
+
 import flwr_oauth2 as oauth
 import gleam/http/request
 import gleam/list

@@ -1,3 +1,8 @@
+//// This module implements [RFC7009](https://datatracker.ietf.org/doc/html/rfc7009) for OAuth 2.0 token revocation.
+//// It offers functions to revoke provided tokens, such as access and refresh tokens.
+//// Which token types are supported depends on the OAuth 2.0 server.
+//// If the server implements RFC7009 it must support revocation of refresh tokens and should support the revocation of access tokens.
+
 import flwr_oauth2 as oauth
 import flwr_oauth2/helpers.{add_if_present}
 import gleam/http/request

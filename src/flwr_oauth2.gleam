@@ -1,3 +1,9 @@
+//// This module implements functions and types for [RFC6749](https://datatracker.ietf.org/doc/html/rfc6749).
+//// It offers types for all the major OAuth 2.0 grant types and functions to create the correct HTTP requests for those grant types.
+//// Furthermore, it offers functions to generate redirect URIs for the [Authorization Code Grant Type](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1) and the [Implicit Grant Type](https://datatracker.ietf.org/doc/html/rfc6749#section-4.2).
+////
+//// It also supports [RFC7636](https://datatracker.ietf.org/doc/html/rfc7636), which adds the Proof Key for Code Exchange to the Authorization Code Grant.
+
 import flwr_oauth2/helpers.{add_if_present}
 import gleam/bit_array
 import gleam/bool
