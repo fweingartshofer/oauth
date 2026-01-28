@@ -211,6 +211,9 @@ type AuthLocation {
   Body(value: List(#(String, String)))
 }
 
+pub type UrlEncRequest =
+  request.Request(List(#(String, String)))
+
 /// Creates the uri that the resource owner should be redirected too.
 pub fn make_redirect_uri(
   redirect_config: AuthorizationCodeGrantRedirectUri,
@@ -314,11 +317,12 @@ pub fn to_http_request(
   |> setup_request(
     endpoint: request.token_endpoint,
     body: _,
-    client_auth: request.authentication,
+    client_auth: option.Some(request.authentication),
   )
 }
 
-fn add_scope(
+/// Function that adds a scope to a list if the scope is not empty.
+pub fn add_scope(
   d: List(#(String, String)),
   scope: Scope,
 ) -> List(#(String, String)) {
@@ -334,7 +338,7 @@ fn add_scope(
 pub fn setup_request(
   endpoint endpoint: uri.Uri,
   body body: List(#(String, String)),
-  client_auth client_auth: ClientAuthentication,
+  client_auth client_auth: option.Option(ClientAuthentication),
 ) -> Result(request.Request(String), RequestError) {
   let req =
     request.from_uri(endpoint)
@@ -345,16 +349,22 @@ pub fn setup_request(
       req
       |> request.set_method(http.Post)
       |> request.set_header("content-type", "application/x-www-form-urlencoded")
-    use auth_location <- result.map(create_authentication(client_auth))
-    case auth_location {
-      Header(key, value) ->
-        req
-        |> request.set_header(key, value)
-        |> request.set_body(uri.query_to_string(body))
-      Body(values) ->
-        list.append(values, body)
-        |> uri.query_to_string()
-        |> request.set_body(req, _)
+    case client_auth {
+      option.Some(client_auth) -> {
+        use auth_location <- result.map(create_authentication(client_auth))
+        case auth_location {
+          Header(key, value) ->
+            req
+            |> request.set_header(key, value)
+            |> request.set_body(uri.query_to_string(body))
+          Body(values) ->
+            list.append(values, body)
+            |> uri.query_to_string()
+            |> request.set_body(req, _)
+        }
+      }
+      option.None ->
+        body |> uri.query_to_string |> request.set_body(req, _) |> Ok()
     }
   }
   |> result.flatten()
@@ -394,6 +404,51 @@ fn create_authentication(
     PublicAuthentication(client_id) ->
       Body([#("client_id", client_id.value)])
       |> Ok()
+  }
+}
+
+/// Encodes the ClientAuthentication that is to be sent to the OAuth 2.0 Server.
+/// For Basic Authentication it will always encode it with base64.
+fn authorization_setter(auth: ClientAuthentication) {
+  case auth {
+    ClientSecretBasic(client_id, client_secret) -> fn(req: UrlEncRequest) {
+      use <- bool.guard(
+        when: client_secret |> is_secret_invalid,
+        return: Error(SecretExpired),
+      )
+      let encoded =
+        { client_id.value <> ":" <> client_secret.value }
+        |> bit_array.from_string()
+        |> bit_array.base64_encode(True)
+      req
+      |> request.set_header(authorization_header, "Basic " <> encoded)
+      |> Ok()
+    }
+    ClientSecretPost(client_id, client_secret) -> fn(req: UrlEncRequest) {
+      use <- bool.guard(
+        when: client_secret |> is_secret_invalid,
+        return: Error(SecretExpired),
+      )
+      let body =
+        req.body
+        |> list.append([
+          #("client_id", client_id.value),
+          #("client_secret", client_secret.value),
+        ])
+      req
+      |> request.set_body(body)
+      |> Ok()
+    }
+    PublicAuthentication(client_id) -> fn(req: UrlEncRequest) {
+      let body =
+        req.body
+        |> list.append([
+          #("client_id", client_id.value),
+        ])
+      req
+      |> request.set_body(body)
+      |> Ok()
+    }
   }
 }
 
@@ -473,11 +528,20 @@ pub fn parse_error_response(
 /// Returns always true for secrets that cannot expire.
 pub fn secret_is_valid(secret: Secret) -> Bool {
   case secret {
-    Secret(_) -> False
+    Secret(_) -> True
     SecretWithExpiration(_, expires_at) ->
       timestamp.compare(expires_at, timestamp.system_time()) == order.Lt
   }
   |> bool.negate()
+}
+
+/// Checks if a given secret is expired.
+/// Returns always false for secrets that cannot expire.
+pub fn is_secret_invalid(secret: Secret) -> Bool {
+  case secret {
+    Secret(_) -> False
+    SecretWithExpiration(_, _) -> secret |> secret_is_valid |> bool.negate
+  }
 }
 
 /// Parses a string containing the space separated scopes.
