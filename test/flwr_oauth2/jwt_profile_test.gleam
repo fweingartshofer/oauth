@@ -29,7 +29,6 @@ pub fn to_http_request_test() {
 
   // When
   let resp = jwt_profile.to_http_request(req)
-  echo resp
 
   // Then
   resp

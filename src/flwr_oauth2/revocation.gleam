@@ -55,7 +55,7 @@ pub fn to_http_request(
   oauth.setup_request(
     endpoint: revocation_request.oauth_server,
     body: body,
-    client_auth: option.Some(revocation_request.credentials),
+    client_auth: revocation_request.credentials |> oauth.authorization_setter(),
   )
 }
 

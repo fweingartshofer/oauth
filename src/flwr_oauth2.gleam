@@ -202,15 +202,15 @@ pub type AccessTokenResponse {
   )
 }
 
-/// This type defines the credentials and where in the request they should be inserted.
-type AuthLocation {
-  /// Insert the OAuth 2.0 client credentials into the Header as `Authorization: Basic base64(clientId:clientSecret)` or `Authorization: Basic clientId:clientSecret`.
-  Header(key: String, value: String)
-  /// Insert the OAuth 2.0 client credentials into the request body as `client_id=<clientId>&client_secret=<clientSecret>`.
-  /// Will not include the client secret for public clients.
-  Body(value: List(#(String, String)))
+/// Type for functions that can set the authorization part of a request.
+/// Can be used to customize how authorization is applied to an OAuth request.
+pub type AuthorizationSetter {
+  AuthorizationSetter(
+    setter: fn(UrlEncRequest) -> Result(UrlEncRequest, RequestError),
+  )
 }
 
+/// Type alias for URL encoded http requests.
 pub type UrlEncRequest =
   request.Request(List(#(String, String)))
 
@@ -317,7 +317,7 @@ pub fn to_http_request(
   |> setup_request(
     endpoint: request.token_endpoint,
     body: _,
-    client_auth: option.Some(request.authentication),
+    client_auth: authorization_setter(request.authentication),
   )
 }
 
@@ -338,7 +338,7 @@ pub fn add_scope(
 pub fn setup_request(
   endpoint endpoint: uri.Uri,
   body body: List(#(String, String)),
-  client_auth client_auth: option.Option(ClientAuthentication),
+  client_auth client_auth: AuthorizationSetter,
 ) -> Result(request.Request(String), RequestError) {
   let req =
     request.from_uri(endpoint)
@@ -349,67 +349,19 @@ pub fn setup_request(
       req
       |> request.set_method(http.Post)
       |> request.set_header("content-type", "application/x-www-form-urlencoded")
-    case client_auth {
-      option.Some(client_auth) -> {
-        use auth_location <- result.map(create_authentication(client_auth))
-        case auth_location {
-          Header(key, value) ->
-            req
-            |> request.set_header(key, value)
-            |> request.set_body(uri.query_to_string(body))
-          Body(values) ->
-            list.append(values, body)
-            |> uri.query_to_string()
-            |> request.set_body(req, _)
-        }
-      }
-      option.None ->
-        body |> uri.query_to_string |> request.set_body(req, _) |> Ok()
-    }
+      |> request.set_body(body)
+      |> client_auth.setter
+    use req <- result.map(req)
+    req.body
+    |> uri.query_to_string()
+    |> request.set_body(req, _)
   }
   |> result.flatten()
 }
 
 /// Encodes the ClientAuthentication that is to be sent to the OAuth 2.0 Server.
 /// For Basic Authentication it will always encode it with base64.
-fn create_authentication(
-  auth: ClientAuthentication,
-) -> Result(AuthLocation, RequestError) {
-  case auth {
-    ClientSecretBasic(client_id, client_secret) -> {
-      client_secret
-      |> secret_is_valid()
-      |> bool.negate()
-      |> bool.guard(Error(SecretExpired), fn() {
-        let encoded =
-          { client_id.value <> ":" <> client_secret.value }
-          |> bit_array.from_string()
-          |> bit_array.base64_encode(True)
-        Header(authorization_header, "Basic " <> encoded)
-        |> Ok()
-      })
-    }
-    ClientSecretPost(client_id, client_secret) -> {
-      client_secret
-      |> secret_is_valid()
-      |> bool.negate()
-      |> bool.guard(Error(SecretExpired), fn() {
-        Body([
-          #("client_id", client_id.value),
-          #("client_secret", client_secret.value),
-        ])
-        |> Ok()
-      })
-    }
-    PublicAuthentication(client_id) ->
-      Body([#("client_id", client_id.value)])
-      |> Ok()
-  }
-}
-
-/// Encodes the ClientAuthentication that is to be sent to the OAuth 2.0 Server.
-/// For Basic Authentication it will always encode it with base64.
-fn authorization_setter(auth: ClientAuthentication) {
+pub fn authorization_setter(auth: ClientAuthentication) -> AuthorizationSetter {
   case auth {
     ClientSecretBasic(client_id, client_secret) -> fn(req: UrlEncRequest) {
       use <- bool.guard(
@@ -431,10 +383,13 @@ fn authorization_setter(auth: ClientAuthentication) {
       )
       let body =
         req.body
-        |> list.append([
-          #("client_id", client_id.value),
-          #("client_secret", client_secret.value),
-        ])
+        |> list.append(
+          [
+            #("client_id", client_id.value),
+            #("client_secret", client_secret.value),
+          ],
+          _,
+        )
       req
       |> request.set_body(body)
       |> Ok()
@@ -442,14 +397,18 @@ fn authorization_setter(auth: ClientAuthentication) {
     PublicAuthentication(client_id) -> fn(req: UrlEncRequest) {
       let body =
         req.body
-        |> list.append([
-          #("client_id", client_id.value),
-        ])
+        |> list.append(
+          [
+            #("client_id", client_id.value),
+          ],
+          _,
+        )
       req
       |> request.set_body(body)
       |> Ok()
     }
   }
+  |> AuthorizationSetter()
 }
 
 /// Parses a token response and returns the access and refresh token if valid response, otherwise the error response.

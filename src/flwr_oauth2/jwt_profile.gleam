@@ -11,7 +11,7 @@ pub type JwtAuthorizationGrantRequest {
   JwtAuthorizationGrantRequest(
     token_endpoint: uri.Uri,
     assertion: String,
-    authentication: option.Option(oauth.ClientAuthentication),
+    authorization: option.Option(oauth.ClientAuthentication),
     scope: oauth.Scope,
   )
 }
@@ -19,12 +19,24 @@ pub type JwtAuthorizationGrantRequest {
 pub fn to_http_request(
   grant: JwtAuthorizationGrantRequest,
 ) -> Result(request.Request(String), oauth.RequestError) {
-  let body =
-    [#("grant_type", grant_type), #("assertion", grant.assertion)]
-    |> oauth.add_scope(grant.scope)
-  oauth.setup_request(
+  [#("grant_type", grant_type), #("assertion", grant.assertion)]
+  |> oauth.add_scope(grant.scope)
+  |> oauth.setup_request(
     endpoint: grant.token_endpoint,
-    body: body,
-    client_auth: grant.authentication,
+    body: _,
+    client_auth: grant.authorization |> authorization_setter(),
+  )
+}
+
+fn authorization_setter(authorization) {
+  authorization
+  |> option.map(oauth.authorization_setter)
+  |> option.unwrap(
+    oauth.AuthorizationSetter(fn(req: oauth.UrlEncRequest) -> Result(
+      oauth.UrlEncRequest,
+      oauth.RequestError,
+    ) {
+      Ok(req)
+    }),
   )
 }
