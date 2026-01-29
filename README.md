@@ -46,3 +46,18 @@ Further documentation can be found at <https://hexdocs.pm/flwr_oauth2>
 gleam run   # Run the project
 gleam test  # Run the tests
 ```
+
+## Roadmap
+
+OAuth 2.0 includes many different RFC which define and extend it.
+This package aims to implement the most common ones.
+
+- [x] [RFC6749 OAuth 2.0](https://datatracker.ietf.org/doc/html/rfc6749).
+- [x] [RFC6750 Bearer Token Authorization for Resource Servers](https://datatracker.ietf.org/doc/html/rfc6750)
+- [x] [RFC7009 Revocation of Tokens](https://datatracker.ietf.org/doc/html/rfc7009)
+- [/] [RFC7521](https://datatracker.ietf.org/doc/html/)
+  - [ ] [RFC7522 SAML Profile Authorization Grant Kind](https://datatracker.ietf.org/doc/html/rfc7522)
+  - [x] [RFC7523 JWT Profile Authorization Grant Kind](https://datatracker.ietf.org/doc/html/rfc7523)
+- [ ] [RFC7591](https://datatracker.ietf.org/doc/html/rfc7591)
+- [/] [RFC7636 PKCE Extension for OAuth 2.0](https://datatracker.ietf.org/doc/html/rfc7636)
+  - [ ] Support Generation of Challenge and Verifier
