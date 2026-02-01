@@ -19,7 +19,6 @@ import gleam/result
 import gleam/string
 import gleam/time/timestamp
 import gleam/uri
-import prng/random
 
 /// Type to indicate the response type of the authorization code and implicit grant.
 /// Must always be "code" for the authorizatin code grant and alway be "token" for the implicit grant.
@@ -514,12 +513,7 @@ const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
 /// Generates a random State with the specified length including only uppercase and lowercase letters
 /// If length <= 0 returns an empty string
 pub fn random_state(length: Int) -> State {
-  let #(value, _) =
-    random.fixed_size_list(random.int(0, 51), length)
-    |> random.step(random.new_seed(11))
-
-  list.map(value, string.slice(from: chars, at_index: _, length: 1))
-  |> string.join("")
+  helpers.generate_random_string(chars, length)
   |> State
 }
 

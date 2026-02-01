@@ -1,7 +1,9 @@
 //// Helper functions
 
+import gleam/int
 import gleam/list
 import gleam/option
+import gleam/string
 
 /// Appends the value if present a given list
 pub fn add_if_present(d: List(a), value: option.Option(a)) -> List(a) {
@@ -15,4 +17,32 @@ pub fn unwrap_both(res: Result(a, a)) -> a {
     Ok(res) -> res
     Error(res) -> res
   }
+}
+
+/// Generates a random string from a given list of characters with a given length
+pub fn generate_random_string(chars chars: String, length length: Int) -> String {
+  generate_random_string_rec("", 0, length, chars)
+}
+
+fn generate_random_string_rec(
+  generated: String,
+  index: Int,
+  length: Int,
+  chars: String,
+) -> String {
+  case index == length {
+    True -> generated
+    False -> {
+      chars
+      |> string.length()
+      |> int.random()
+      |> string.slice(from: chars, at_index: _, length: 1)
+      |> concat_strings(generated, _)
+      |> generate_random_string_rec(index + 1, length, chars)
+    }
+  }
+}
+
+fn concat_strings(left: String, right: String) -> String {
+  left <> right
 }
