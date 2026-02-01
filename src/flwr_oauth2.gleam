@@ -5,7 +5,7 @@
 //// It also supports [RFC7636](https://datatracker.ietf.org/doc/html/rfc7636), which adds the Proof Key for Code Exchange to the Authorization Code Grant.
 
 import flwr_oauth2/helpers.{add_if_present}
-import gleam/bit_array
+import flwr_oauth2/http_headers
 import gleam/bool
 import gleam/dynamic/decode
 import gleam/http
@@ -20,9 +20,6 @@ import gleam/string
 import gleam/time/timestamp
 import gleam/uri
 import prng/random
-
-/// Name for the HTTP Authorization Header
-pub const authorization_header = "authorization"
 
 /// Type to indicate the response type of the authorization code and implicit grant.
 /// Must always be "code" for the authorizatin code grant and alway be "token" for the implicit grant.
@@ -368,12 +365,8 @@ pub fn authorization_setter(auth: ClientAuthentication) -> AuthorizationSetter {
         when: client_secret |> is_secret_invalid,
         return: Error(SecretExpired),
       )
-      let encoded =
-        { client_id.value <> ":" <> client_secret.value }
-        |> bit_array.from_string()
-        |> bit_array.base64_encode(True)
       req
-      |> request.set_header(authorization_header, "Basic " <> encoded)
+      |> http_headers.set_basic(client_id.value, client_secret.value)
       |> Ok()
     }
     ClientSecretPost(client_id, client_secret) -> fn(req: UrlEncRequest) {

@@ -1,6 +1,7 @@
 //// This module aims to fulfill most of [RFC6750](https://datatracker.ietf.org/doc/html/rfc6750) for attaching an access token to an HTTP request to a protected resource.
 
 import flwr_oauth2 as oauth
+import flwr_oauth2/http_headers
 import gleam/http/request
 import gleam/list
 
@@ -11,10 +12,7 @@ pub fn attach_bearer_token_header(
   token: oauth.AccessTokenResponse,
 ) -> request.Request(a) {
   req
-  |> request.set_header(
-    oauth.authorization_header,
-    "Bearer " <> token.access_token,
-  )
+  |> http_headers.set_bearer(token.access_token)
 }
 
 /// Attach the access token to the body as access token.
