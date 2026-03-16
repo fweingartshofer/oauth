@@ -11,6 +11,7 @@ import gleam/dynamic/decode
 import gleam/http
 import gleam/http/request
 import gleam/http/response
+import gleam/int
 import gleam/json
 import gleam/list
 import gleam/option
@@ -19,14 +20,6 @@ import gleam/result
 import gleam/string
 import gleam/time/timestamp
 import gleam/uri
-
-/// Type to indicate the response type of the authorization code and implicit grant.
-/// Must always be "code" for the authorizatin code grant and alway be "token" for the implicit grant.
-/// For more information see [RFC6749](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.1).
-pub type ResponseType {
-  Code
-  Token
-}
 
 /// Type to indicate the client ID.
 /// Mostly used to have type-safe parameters, so client id, client secret, etc are not mixed up.
@@ -51,45 +44,6 @@ pub type Secret {
 /// See [RFC6749](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.1)
 pub type Scope =
   List(String)
-
-/// Type to indicate the state.
-/// Mostly used to have type-safe parameters, so other string parameters are not mixed up.
-/// See [RFC6749](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.1)
-pub type State {
-  State(value: String)
-}
-
-/// This defines a redirect url defined by [RFC6749 Authorization Code Grant](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1).
-pub type AuthorizationCodeGrantRedirectUri {
-  /// Represents a standard redirect url without any extensions.
-  AuthorizationCodeGrantRedirectUri(
-    oauth_server: uri.Uri,
-    response_type: ResponseType,
-    redirect_uri: option.Option(uri.Uri),
-    client_id: ClientId,
-    scope: Scope,
-    state: option.Option(State),
-  )
-  /// Represents a redirect url with a PKCE code challenge.
-  /// See [RFC7636](https://datatracker.ietf.org/doc/html/rfc7636).
-  AuthorizationCodeGrantRedirectUriWithPKCE(
-    oauth_server: uri.Uri,
-    response_type: ResponseType,
-    redirect_uri: option.Option(uri.Uri),
-    client_id: ClientId,
-    scope: Scope,
-    state: option.Option(State),
-    code_challenge: String,
-    code_challenge_method: CodeChallengeMethod,
-  )
-}
-
-/// The kind of code challenge method used for the PKCE extension.
-/// See [RFC7636 Client Creates Code Challenge](https://datatracker.ietf.org/doc/html/rfc7636#section-4.2)
-pub type CodeChallengeMethod {
-  Plain
-  S256
-}
 
 /// The essential requests of OAuth 2.0.
 /// The token requests includes all the different Grant Types defined in [RFC6749](https://datatracker.ietf.org/doc/html/rfc6749).
@@ -210,48 +164,18 @@ pub type AuthorizationSetter {
 pub type UrlEncRequest =
   request.Request(List(#(String, String)))
 
-/// Creates the uri that the resource owner should be redirected too.
-pub fn make_redirect_uri(
-  redirect_config: AuthorizationCodeGrantRedirectUri,
-) -> uri.Uri {
-  let state =
-    redirect_config.state
-    |> option.map(fn(x) { x.value })
-    |> option.map(wrap_tuple("state", _))
-  let redirect_uri = to_redirect_uri_query(redirect_config.redirect_uri)
-  let code_callenge = case redirect_config {
-    AuthorizationCodeGrantRedirectUriWithPKCE(
-      _,
-      _,
-      _,
-      _,
-      _,
-      _,
-      code_challenge,
-      method,
-    ) ->
-      option.Some([
-        #("code_challenge", code_challenge),
-        #("code_challenge_method", case method {
-          Plain -> "plain"
-          S256 -> "S256"
-        }),
-      ])
-    _ -> option.None
-  }
-  let queries =
-    [
-      #("response_type", response_type_to_string(redirect_config.response_type)),
-      #("client_id", redirect_config.client_id.value),
-      #("scope", string.join(redirect_config.scope, " ")),
-    ]
-    |> add_if_present(redirect_uri)
-    |> add_if_present(state)
-    |> add_many_if_present(code_callenge)
-  uri.Uri(
-    ..redirect_config.oauth_server,
-    query: option.Some(uri.query_to_string(queries)),
-  )
+/// Creates a String representation of a token request
+pub fn to_string_token_response(resp: AccessTokenResponse) {
+  "AccessTokenResponse(
+    access_token: " <> resp.access_token <> ",
+    token_type: " <> resp.token_type <> ",
+    expires_in: " <> option.unwrap(
+    option.map(resp.expires_in, int.to_string),
+    "None",
+  ) <> "),
+    refresh_token: " <> option.unwrap(resp.refresh_token, "None") <> ",
+    scope: [" <> string.join(resp.scope, ", ") <> "],
+  )"
 }
 
 /// Creates a http request from the given TokenRequest, but does not send.
@@ -266,7 +190,7 @@ pub fn to_http_request(
       redirect_uri,
       code,
     ) -> {
-      let redirect_uri = to_redirect_uri_query(redirect_uri)
+      let redirect_uri = helpers.encode_redirect_uri(redirect_uri)
       [#("grant_type", "authorization_code"), #("code", code)]
       |> add_if_present(redirect_uri)
     }
@@ -277,7 +201,7 @@ pub fn to_http_request(
       code,
       code_verifier,
     ) -> {
-      let redirect_uri = to_redirect_uri_query(redirect_uri)
+      let redirect_uri = helpers.encode_redirect_uri(redirect_uri)
       [
         #("grant_type", "authorization_code"),
         #("code", code),
@@ -508,45 +432,6 @@ pub fn parse_scope(scope: String) -> Scope {
   |> list.filter(string_not_empty)
 }
 
-const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-
-/// Generates a random State with the specified length including only uppercase and lowercase letters
-/// If length <= 0 returns an empty string
-pub fn random_state(length: Int) -> State {
-  helpers.generate_random_string(chars, length)
-  |> State
-}
-
-/// Generates a random 32 character long State
-pub fn random_state32() -> State {
-  random_state(32)
-}
-
-fn response_type_to_string(response_type: ResponseType) {
-  case response_type {
-    Code -> "code"
-    Token -> "token"
-  }
-}
-
 fn string_not_empty(l: String) -> Bool {
   !string.is_empty(l)
-}
-
-fn add_many_if_present(d: List(a), value: option.Option(List(a))) -> List(a) {
-  value
-  |> option.unwrap([])
-  |> list.append(d)
-}
-
-fn to_redirect_uri_query(
-  value: option.Option(uri.Uri),
-) -> option.Option(#(String, String)) {
-  value
-  |> option.map(uri.to_string)
-  |> option.map(wrap_tuple("redirect_uri", _))
-}
-
-fn wrap_tuple(name: a, value: b) {
-  #(name, value)
 }

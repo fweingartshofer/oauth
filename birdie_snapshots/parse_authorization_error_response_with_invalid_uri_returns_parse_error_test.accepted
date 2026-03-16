@@ -1,0 +1,7 @@
+---
+version: 1.5.4
+title: Parse Authorization Error Response with Invalid URI returns ParseError Test
+file: ./test/flwr_oauth2/authorization_grant_test.gleam
+test_name: parse_authorization_error_response_invalid_uri_test
+---
+ParseError(field: error_uri)

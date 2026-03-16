@@ -1,0 +1,7 @@
+---
+version: 1.5.4
+title: Make Redirect URI Test
+file: ./test/flwr_oauth2/authorization_grant_test.gleam
+test_name: make_redirect_uri_test
+---
+https://example.com/oauth2/?code_challenge=asdf&code_challenge_method=S256&state=state&redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback&response_type=code&client_id=client-id&scope=scope1%20scope2

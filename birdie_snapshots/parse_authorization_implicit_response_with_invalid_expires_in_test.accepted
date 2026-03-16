@@ -1,0 +1,7 @@
+---
+version: 1.5.4
+title: Parse Authorization Implicit Response with Invalid expires_in Test
+file: ./test/flwr_oauth2/authorization_grant_test.gleam
+test_name: parse_authorization_implicit_response_with_invalid_expires_in_test
+---
+ParseError(field: expires_in)

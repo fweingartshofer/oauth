@@ -4,6 +4,7 @@ import gleam/int
 import gleam/list
 import gleam/option
 import gleam/string
+import gleam/uri
 
 /// Appends the value if present a given list
 pub fn add_if_present(d: List(a), value: option.Option(a)) -> List(a) {
@@ -17,6 +18,24 @@ pub fn unwrap_both(res: Result(a, a)) -> a {
     Ok(res) -> res
     Error(res) -> res
   }
+}
+
+pub fn add_many_if_present(d: List(a), value: option.Option(List(a))) -> List(a) {
+  value
+  |> option.unwrap([])
+  |> list.append(d)
+}
+
+pub fn wrap_tuple(name: a, value: b) {
+  #(name, value)
+}
+
+pub fn encode_redirect_uri(
+  value: option.Option(uri.Uri),
+) -> option.Option(#(String, String)) {
+  value
+  |> option.map(uri.to_string)
+  |> option.map(wrap_tuple("redirect_uri", _))
 }
 
 /// Generates a random string from a given list of characters with a given length
