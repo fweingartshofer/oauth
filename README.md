@@ -11,7 +11,7 @@ compatibility with as many use cases as possible.
 [![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/flwr_oauth2/)
 
 ```sh
-gleam add flwr_oauth2@2.0.0
+gleam add flwr_oauth2@2.1.0
 ```
 
 ```gleam

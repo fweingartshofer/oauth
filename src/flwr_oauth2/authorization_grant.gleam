@@ -220,6 +220,14 @@ pub fn parse_authorization_response(
     |> result.flatten
   use pairs <- result.try(query)
   let query = pairs |> dict.from_list()
+  parse_authorization_response_query(query)
+}
+
+/// Parses the query from the authorization response HTTP request.
+/// This function is intended to be used in case your implementation does not use the standard gleam/http/request type.
+pub fn parse_authorization_response_query(
+  query: dict.Dict(String, String),
+) -> Result(AuthorizationResponse, ParseError) {
   let error_response = parse_error_response(query)
   use error_response <- result.try(error_response)
   let error_response = error_response |> option.map(Ok)
