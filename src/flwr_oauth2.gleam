@@ -178,6 +178,137 @@ pub fn to_string_token_response(resp: AccessTokenResponse) {
   )"
 }
 
+pub fn to_string_token_request(req: TokenRequest) {
+  case req {
+    AuthorizationCodeGrantTokenRequest(
+      token_endpoint,
+      authentication,
+      redirect_uri,
+      code,
+    ) ->
+      "AuthorizationCodeGrantTokenRequest("
+      <> "token_endpoint="
+      <> uri.to_string(token_endpoint)
+      <> ", "
+      <> "authentication="
+      <> to_string_client_authentication(authentication)
+      <> ", "
+      <> "redirect_uri="
+      <> option.map(redirect_uri, uri.to_string)
+      |> option.unwrap("None")
+      <> ", "
+      <> "code="
+      <> code
+      <> ")"
+
+    AuthorizationCodeGrantTokenRequestWithPKCE(
+      token_endpoint,
+      authentication,
+      redirect_uri,
+      code,
+      code_verifier,
+    ) ->
+      "AuthorizationCodeGrantTokenRequestWithPKCE("
+      <> "token_endpoint="
+      <> uri.to_string(token_endpoint)
+      <> ", "
+      <> "authentication="
+      <> to_string_client_authentication(authentication)
+      <> ", "
+      <> "redirect_uri="
+      <> option.map(redirect_uri, uri.to_string)
+      |> option.unwrap("None")
+      <> ", "
+      <> "code="
+      <> code
+      <> ", "
+      <> "code_verifier="
+      <> code_verifier
+      <> ")"
+
+    ResourceOwnerCredentialsGrantTokenRequest(
+      token_endpoint,
+      authentication,
+      username,
+      password,
+      scope,
+    ) ->
+      "ResourceOwnerCredentialsGrantTokenRequest("
+      <> "token_endpoint="
+      <> uri.to_string(token_endpoint)
+      <> ", "
+      <> "authentication="
+      <> to_string_client_authentication(authentication)
+      <> ", "
+      <> "username="
+      <> username
+      <> ", "
+      <> "password="
+      <> password
+      <> ", "
+      <> "scope="
+      <> string.join(scope, " ")
+      <> ")"
+
+    RefreshTokenGrantRequest(
+      token_endpoint,
+      authentication,
+      refresh_token,
+      scope,
+    ) ->
+      "RefreshTokenGrantRequest("
+      <> "token_endpoint="
+      <> uri.to_string(token_endpoint)
+      <> ", "
+      <> "authentication="
+      <> to_string_client_authentication(authentication)
+      <> ", "
+      <> "refresh_token="
+      <> refresh_token
+      <> ", "
+      <> "scope="
+      <> string.join(scope, " ")
+      <> ")"
+
+    ClientCredentialsGrantTokenRequest(token_endpoint, authentication, scope) ->
+      "ClientCredentialsGrantTokenRequest("
+      <> "token_endpoint="
+      <> uri.to_string(token_endpoint)
+      <> ", "
+      <> "authentication="
+      <> to_string_client_authentication(authentication)
+      <> ", "
+      <> "scope="
+      <> string.join(scope, " ")
+      <> ")"
+  }
+}
+
+pub fn to_string_client_authentication(
+  client_auth: ClientAuthentication,
+) -> String {
+  case client_auth {
+    ClientSecretBasic(client_id:, client_secret: _) ->
+      "ClientSecretBasic("
+      <> "client_id="
+      <> client_id.value
+      <> ", "
+      <> "client_secret=***"
+      <> ")"
+
+    ClientSecretPost(client_id:, client_secret: _) ->
+      "ClientSecretPost("
+      <> "client_id="
+      <> client_id.value
+      <> ", "
+      <> "client_secret=***"
+      <> ")"
+
+    PublicAuthentication(client_id:) ->
+      "PublicAuthentication(" <> "client_id=" <> client_id.value <> ")"
+  }
+}
+
 /// Creates a http request from the given TokenRequest, but does not send.
 /// Sending the request is done by the user of the function.
 pub fn to_http_request(

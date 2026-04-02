@@ -3,6 +3,7 @@ import flwr_oauth2.{
   AuthorizationCodeGrantTokenRequest,
 }
 import flwr_oauth2/helpers
+import flwr_oauth2/pkce
 import gleam/dict
 import gleam/http/request
 import gleam/int
@@ -358,6 +359,30 @@ pub fn to_token_request(
         authentication:,
         redirect_uri:,
         code:,
+      )
+      |> Ok
+    }
+    _ -> Error(Nil)
+  }
+}
+
+/// Utility function to create a TokenRequest from an AuthorizationResponse.
+/// If the AuthorizationResponse is an ErrorResponse or an ImplicitGrantResponse returns Error(Nil), otherwise returns an AuthorizationCodeGrantTokenRequest.
+pub fn to_token_request_with_pkce_verifier(
+  authorization_response: AuthorizationResponse,
+  token_endpoint: uri.Uri,
+  authentication: flwr_oauth2.ClientAuthentication,
+  redirect_uri: option.Option(uri.Uri),
+  verifier: pkce.Verifier,
+) {
+  case authorization_response {
+    CodeGrantResponse(code:, state: _) -> {
+      flwr_oauth2.AuthorizationCodeGrantTokenRequestWithPKCE(
+        token_endpoint:,
+        authentication:,
+        redirect_uri:,
+        code:,
+        code_verifier: verifier.value,
       )
       |> Ok
     }

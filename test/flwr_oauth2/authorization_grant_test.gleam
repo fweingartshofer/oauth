@@ -1,6 +1,7 @@
 import birdie
 import flwr_oauth2
 import flwr_oauth2/authorization_grant as oauth
+import flwr_oauth2/pkce
 import gleam/http/request
 import gleam/option
 import gleam/string
@@ -192,4 +193,118 @@ pub fn parse_authorization_implicit_response_with_invalid_expires_in_test() {
   |> birdie.snap(
     title: "Parse Authorization Implicit Response with Invalid expires_in Test",
   )
+}
+
+pub fn to_token_request_test() {
+  // Given
+  let response =
+    oauth.CodeGrantResponse(option.Some(oauth.State("state")), "code")
+  let assert Ok(origin) = uri.parse("https://original-uri.com")
+  let assert Ok(token_endpoint) = uri.parse("https://localhost:3000")
+
+  // When
+  let assert Ok(res) =
+    oauth.to_token_request(
+      response,
+      token_endpoint,
+      flwr_oauth2.ClientSecretPost(
+        flwr_oauth2.ClientId("client-id"),
+        flwr_oauth2.Secret("secret"),
+      ),
+      option.Some(origin),
+    )
+  // Then
+  res
+  |> flwr_oauth2.to_string_token_request()
+  |> birdie.snap("to_token_request creates valid token request")
+}
+
+pub fn to_token_request_with_invalid_response_test() {
+  // Given
+  let response =
+    oauth.ImplicitGrantResponse(
+      option.Some(oauth.State("state")),
+      flwr_oauth2.AccessTokenResponse(
+        "access_token",
+        "Bearer",
+        option.None,
+        option.None,
+        [],
+      ),
+    )
+  let assert Ok(origin) = uri.parse("https://original-uri.com")
+  let assert Ok(token_endpoint) = uri.parse("https://localhost:3000")
+
+  // When
+  let res =
+    oauth.to_token_request(
+      response,
+      token_endpoint,
+      flwr_oauth2.ClientSecretPost(
+        flwr_oauth2.ClientId("client-id"),
+        flwr_oauth2.Secret("secret"),
+      ),
+      option.Some(origin),
+    )
+  // Then
+  res |> should.be_error()
+}
+
+pub fn to_token_request_with_pkce_verifier_test() {
+  // Given
+  let response =
+    oauth.CodeGrantResponse(option.Some(oauth.State("state")), "code")
+  let assert Ok(origin) = uri.parse("https://original-uri.com")
+  let assert Ok(token_endpoint) = uri.parse("https://localhost:3000")
+
+  // When
+  let assert Ok(res) =
+    oauth.to_token_request_with_pkce_verifier(
+      response,
+      token_endpoint,
+      flwr_oauth2.ClientSecretPost(
+        flwr_oauth2.ClientId("client-id"),
+        flwr_oauth2.Secret("secret"),
+      ),
+      option.Some(origin),
+      pkce.Verifier("verifier"),
+    )
+  // Then
+  res
+  |> flwr_oauth2.to_string_token_request()
+  |> birdie.snap(
+    "to_token_request_with_pkce_verifier creates valid token request",
+  )
+}
+
+pub fn to_token_request_with_pkce_verifier_with_invalid_response_test() {
+  // Given
+  let response =
+    oauth.ImplicitGrantResponse(
+      option.Some(oauth.State("state")),
+      flwr_oauth2.AccessTokenResponse(
+        "access_token",
+        "Bearer",
+        option.None,
+        option.None,
+        [],
+      ),
+    )
+  let assert Ok(origin) = uri.parse("https://original-uri.com")
+  let assert Ok(token_endpoint) = uri.parse("https://localhost:3000")
+
+  // When
+  let res =
+    oauth.to_token_request_with_pkce_verifier(
+      response,
+      token_endpoint,
+      flwr_oauth2.ClientSecretPost(
+        flwr_oauth2.ClientId("client-id"),
+        flwr_oauth2.Secret("secret"),
+      ),
+      option.Some(origin),
+      pkce.Verifier("verifier"),
+    )
+  // Then
+  res |> should.be_error()
 }
