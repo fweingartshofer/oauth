@@ -11,8 +11,15 @@ pub fn attach_bearer_token_header(
   req: request.Request(a),
   token: oauth.AccessTokenResponse,
 ) -> request.Request(a) {
-  req
-  |> http_headers.set_bearer(token.access_token)
+  attach_bearer_token_string_to_header(req, token.access_token)
+}
+
+/// See [attach_bearer_token_header](#attach_bearer_token_header)
+pub fn attach_bearer_token_string_to_header(
+  req: request.Request(a),
+  access_token: String,
+) -> request.Request(a) {
+  http_headers.set_bearer(req, access_token)
 }
 
 /// Attach the access token to the body as access token.
@@ -23,8 +30,16 @@ pub fn attach_access_token_to_body(
   req: oauth.UrlEncRequest,
   token: oauth.AccessTokenResponse,
 ) -> oauth.UrlEncRequest {
+  attach_access_token_string_to_body(req, token.access_token)
+}
+
+/// See [attach_access_token_to_body](#attach_access_token_to_body)
+pub fn attach_access_token_string_to_body(
+  req: oauth.UrlEncRequest,
+  access_token: String,
+) -> oauth.UrlEncRequest {
   req.body
-  |> list.prepend(access_token_tuple(token))
+  |> list.prepend(access_token_tuple(access_token))
   |> request.set_body(req, _)
 }
 
@@ -34,14 +49,22 @@ pub fn attach_access_token_to_query_parameters(
   req: request.Request(a),
   token: oauth.AccessTokenResponse,
 ) -> request.Request(a) {
+  attach_access_token_string_to_query_parameters(req, token.access_token)
+}
+
+/// See [attach_access_token_to_query_parameters](#attach_access_token_to_query_parameters)
+pub fn attach_access_token_string_to_query_parameters(
+  req: request.Request(a),
+  access_token: String,
+) -> request.Request(a) {
   case request.get_query(req) {
     Error(_) -> []
     Ok(query_params) -> query_params
   }
-  |> list.prepend(access_token_tuple(token))
+  |> list.prepend(access_token_tuple(access_token))
   |> request.set_query(req, _)
 }
 
-fn access_token_tuple(token: oauth.AccessTokenResponse) -> #(String, String) {
-  #("access_token", token.access_token)
+fn access_token_tuple(token: String) -> #(String, String) {
+  #("access_token", token)
 }
