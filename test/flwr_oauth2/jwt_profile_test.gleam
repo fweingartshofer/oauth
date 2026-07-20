@@ -1,4 +1,5 @@
 import flwr_oauth2
+import flwr_oauth2/assertions
 import flwr_oauth2/jwt_profile
 import gleam/http
 import gleam/http/request
@@ -12,7 +13,12 @@ pub fn to_http_request_test() {
   let jwt =
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30"
   let req =
-    jwt_profile.JwtAuthorizationGrantRequest(endpoint, jwt, option.None, [])
+    assertions.PresetAssertionAuthorizationGrantRequest(
+      endpoint,
+      jwt,
+      option.None,
+      [],
+    )
   let expected =
     request.Request(
       method: http.Post,

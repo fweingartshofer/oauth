@@ -1,19 +1,19 @@
-//// This module aims to implement [RFC7523](https://datatracker.ietf.org/doc/html/rfc7523) JSON Web Token (JWT) Profile for OAuth 2.0 Client Authentication and Authorization Grants.
+//// This module aims to implement [RFC7522](https://datatracker.ietf.org/doc/html/rfc7522) Security Assertion Markup Language (SAML) 2.0 Profile for OAuth 2.0 for OAuth 2.0 Client Authentication and Authorization Grants
 //// For more infomation on the Authorization Assertion Grant Type see [RFC7521](https://datatracker.ietf.org/doc/html/rfc7521).
 
 import flwr_oauth2 as oauth
 import flwr_oauth2/assertions
 import gleam/http/request
 
-const grant_type = "urn:ietf:params:oauth:grant-type:jwt-bearer"
+const grant_type = "urn:ietf:params:oauth:grant-type:saml2-bearer"
 
-const client_assertion_type = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+const client_assertion_type = "urn:ietf:params:oauth:client-assertion-type:saml2-bearer"
 
-pub type JwtAuthorizationGrantRequest =
+pub type SamlAuthorizationGrantRequest =
   assertions.PresetAssertionAuthorizationGrantRequest
 
 pub fn to_http_request(
-  grant: JwtAuthorizationGrantRequest,
+  grant: SamlAuthorizationGrantRequest,
 ) -> Result(request.Request(String), oauth.RequestError) {
   let assertions.PresetAssertionAuthorizationGrantRequest(
     token_endpoint:,
