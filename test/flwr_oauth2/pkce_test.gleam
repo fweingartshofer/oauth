@@ -1,5 +1,10 @@
+import flwr_oauth2 as oauth2
 import flwr_oauth2/pkce
+import gleam/http
+import gleam/http/request
+import gleam/option
 import gleam/string
+import gleam/uri
 import gleeunit/should
 
 pub fn new_should_create_a_random_verifier_test() {
@@ -22,4 +27,38 @@ pub fn to_challenge_creates_valid_challenge_test() {
 
   // Then
   challenge |> should.equal(expected)
+}
+
+pub fn to_http_request_with_pkce_test() {
+  // Given
+  let assert Ok(server) = uri.parse("https://example.com/oauth2/")
+  let assert Ok(redirect_uri) = uri.parse("http://localhost:8080/callback")
+  let token_request =
+    pkce.AuthorizationCodeGrantTokenRequestWithPKCE(
+      server,
+      oauth2.ClientSecretBasic(oauth2.ClientId("test"), oauth2.Secret("test")),
+      option.Some(redirect_uri),
+      "asdf",
+      "code_verifier",
+    )
+  let expected =
+    request.Request(
+      method: http.Post,
+      headers: [
+        #("content-type", "application/x-www-form-urlencoded"),
+        #("authorization", "Basic dGVzdDp0ZXN0"),
+      ],
+      body: "redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback&grant_type=authorization_code&code=asdf&code_verifier=code_verifier",
+      scheme: http.Https,
+      host: "example.com",
+      port: option.None,
+      path: "/oauth2/",
+      query: option.None,
+    )
+
+  // When
+  let res = pkce.to_http_request(token_request)
+
+  // Then
+  res |> should.equal(Ok(expected))
 }

@@ -23,7 +23,7 @@ pub fn to_http_request_with_revocation_of_access_token_test() {
       headers: [
         #("content-type", "application/x-www-form-urlencoded"),
       ],
-      body: "client_id=client-id&token_type_hint=access_token&token=token",
+      body: "token_type_hint=access_token&client_id=client-id&token=token",
       scheme: http.Https,
       host: "example.com",
       port: option.None,

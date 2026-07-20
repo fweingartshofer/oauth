@@ -18,8 +18,9 @@ pub fn to_http_request_test() {
       headers: [
         #("content-type", "application/x-www-form-urlencoded"),
       ],
-      body: "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion="
-        <> jwt,
+      body: "assertion="
+        <> jwt
+        <> "&grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
       scheme: http.Https,
       host: "example.com",
       port: option.None,

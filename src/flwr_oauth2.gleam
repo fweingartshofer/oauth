@@ -9,7 +9,7 @@ import flwr_oauth2/http_headers
 import gleam/bool
 import gleam/dynamic/decode
 import gleam/http
-import gleam/http/request
+import gleam/http/request.{type Request}
 import gleam/http/response
 import gleam/int
 import gleam/json
@@ -57,16 +57,6 @@ pub type TokenRequest {
     redirect_uri: option.Option(uri.Uri),
     code: String,
   )
-  /// A token request for the Authorization Code Grant Type with a PKCE code verifier.
-  /// Use the [`AuthorizationCodeGrantRedirectUri`](#AuthorizationCodeGrantRedirectUri) to retrieve the `code`.
-  /// See [RFC6749 Authorization Code Grant](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1) and [RFC7636](https://datatracker.ietf.org/doc/html/rfc7636).
-  AuthorizationCodeGrantTokenRequestWithPKCE(
-    token_endpoint: uri.Uri,
-    authentication: ClientAuthentication,
-    redirect_uri: option.Option(uri.Uri),
-    code: String,
-    code_verifier: String,
-  )
   /// A token request for the Resource Owner Password Grant Type.
   /// See [RFC6749 Resource Owner Password Grant](https://datatracker.ietf.org/doc/html/rfc6749#section-4.3).
   ResourceOwnerCredentialsGrantTokenRequest(
@@ -113,7 +103,7 @@ pub type ClientAuthentication {
   /// client_id=asdf&client_secret=hjkl
   /// ```
   ClientSecretPost(client_id: ClientId, client_secret: Secret)
-  /// Use this type if the client is public and there is not client secret to be included.
+  /// Use this type if the client is public and there is no client secret to be included.
   PublicAuthentication(client_id: ClientId)
 }
 
@@ -162,7 +152,7 @@ pub type AuthorizationSetter {
 
 /// Type alias for URL encoded http requests.
 pub type UrlEncRequest =
-  request.Request(List(#(String, String)))
+  Request(List(#(String, String)))
 
 /// Creates a String representation of a token request
 pub fn to_string_token_response(resp: AccessTokenResponse) {
@@ -199,31 +189,6 @@ pub fn to_string_token_request(req: TokenRequest) {
       <> ", "
       <> "code="
       <> code
-      <> ")"
-
-    AuthorizationCodeGrantTokenRequestWithPKCE(
-      token_endpoint,
-      authentication,
-      redirect_uri,
-      code,
-      code_verifier,
-    ) ->
-      "AuthorizationCodeGrantTokenRequestWithPKCE("
-      <> "token_endpoint="
-      <> uri.to_string(token_endpoint)
-      <> ", "
-      <> "authentication="
-      <> to_string_client_authentication(authentication)
-      <> ", "
-      <> "redirect_uri="
-      <> option.map(redirect_uri, uri.to_string)
-      |> option.unwrap("None")
-      <> ", "
-      <> "code="
-      <> code
-      <> ", "
-      <> "code_verifier="
-      <> code_verifier
       <> ")"
 
     ResourceOwnerCredentialsGrantTokenRequest(
@@ -309,44 +274,49 @@ pub fn to_string_client_authentication(
   }
 }
 
-/// Creates a http request from the given TokenRequest, but does not send.
+pub type RequestModifier =
+  fn(UrlEncRequest) -> Result(UrlEncRequest, RequestError)
+
+/// Creates a http request from the given TokenRequest applying the given modifiers, but does not send it.
 /// Sending the request is done by the user of the function.
-pub fn to_http_request(
+pub fn to_http_request(request) {
+  request |> to_http_request_with_modifiers([])
+}
+
+/// Creates a http request from the given TokenRequest applying the given modifiers, but does not send it.
+/// Sending the request is done by the user of the function.
+pub fn to_http_request_with_modifiers(
   request: TokenRequest,
-) -> Result(request.Request(String), RequestError) {
+  modifiers: List(RequestModifier),
+) -> Result(Request(String), RequestError) {
+  let modifiers = [authorization_setter(request.authentication), ..modifiers]
+  base_http_request(request)
+  |> result.try(apply_modifiers(_, modifiers))
+  |> result.map(request_body_to_string)
+}
+
+pub fn to_http_request_with_custom_authentication(
+  request: TokenRequest,
+  modifiers: List(RequestModifier),
+) {
+  base_http_request(request)
+  |> result.try(apply_modifiers(_, modifiers))
+  |> result.map(request_body_to_string)
+}
+
+fn base_http_request(req: TokenRequest) -> Result(UrlEncRequest, RequestError) {
+  request_body(req)
+  |> setup_request(endpoint: req.token_endpoint, body: _)
+}
+
+fn request_body(request: TokenRequest) -> List(#(String, String)) {
   case request {
-    AuthorizationCodeGrantTokenRequest(
-      _server,
-      _client_auth,
-      redirect_uri,
-      code,
-    ) -> {
+    AuthorizationCodeGrantTokenRequest(redirect_uri:, code:, ..) -> {
       let redirect_uri = helpers.encode_redirect_uri(redirect_uri)
       [#("grant_type", "authorization_code"), #("code", code)]
       |> add_if_present(redirect_uri)
     }
-    AuthorizationCodeGrantTokenRequestWithPKCE(
-      _server,
-      _client_auth,
-      redirect_uri,
-      code,
-      code_verifier,
-    ) -> {
-      let redirect_uri = helpers.encode_redirect_uri(redirect_uri)
-      [
-        #("grant_type", "authorization_code"),
-        #("code", code),
-        #("code_verifier", code_verifier),
-      ]
-      |> add_if_present(redirect_uri)
-    }
-    ResourceOwnerCredentialsGrantTokenRequest(
-      token_endpoint: _server,
-      authentication: _client_auth,
-      username: username,
-      password: password,
-      scope: scope,
-    ) -> {
+    ResourceOwnerCredentialsGrantTokenRequest(username:, password:, scope:, ..) -> {
       [
         #("grant_type", "password"),
         #("username", username),
@@ -354,65 +324,64 @@ pub fn to_http_request(
       ]
       |> add_scope(scope)
     }
-    RefreshTokenGrantRequest(_server, _client_auth, refresh_token, scope) -> {
+    RefreshTokenGrantRequest(refresh_token:, scope:, ..) -> {
       [#("grant_type", "refresh_token"), #("refresh_token", refresh_token)]
       |> add_scope(scope)
     }
-    ClientCredentialsGrantTokenRequest(_server, _client_auth, scope) -> {
+    ClientCredentialsGrantTokenRequest(scope:, ..) -> {
       [
         #("grant_type", "client_credentials"),
       ]
       |> add_scope(scope)
     }
   }
-  |> setup_request(
-    endpoint: request.token_endpoint,
-    body: _,
-    client_auth: authorization_setter(request.authentication),
-  )
+}
+
+fn apply_modifiers(
+  request: UrlEncRequest,
+  modifiers: List(RequestModifier),
+) -> Result(UrlEncRequest, RequestError) {
+  list.fold(over: modifiers, from: Ok(request), with: result.try)
+}
+
+fn request_body_to_string(request: UrlEncRequest) -> request.Request(String) {
+  request.body
+  |> uri.query_to_string()
+  |> request.set_body(request, _)
 }
 
 /// Function that adds a scope to a list if the scope is not empty.
-pub fn add_scope(
+fn add_scope(
   d: List(#(String, String)),
   scope: Scope,
 ) -> List(#(String, String)) {
-  case list.is_empty(scope) {
-    False -> option.Some(#("scope", scope |> string.join(" ")))
-    True -> option.None
+  case scope {
+    [_, ..] as scope -> option.Some(#("scope", scope |> string.join(" ")))
+    _ -> option.None
   }
   |> add_if_present(d, _)
 }
 
 /// A helper function that maps a general request with credentials to a gleam http request.
 /// The credentials are either attached to the request body URL encoded or added as basic `authorization` header.
-pub fn setup_request(
+fn setup_request(
   endpoint endpoint: uri.Uri,
   body body: List(#(String, String)),
-  client_auth client_auth: AuthorizationSetter,
-) -> Result(request.Request(String), RequestError) {
+) -> Result(Request(List(#(String, String))), RequestError) {
   let req =
     request.from_uri(endpoint)
-    |> result.map_error(fn(_x) { InvalidUri })
-  {
-    use req <- result.map(req)
-    let req =
-      req
-      |> request.set_method(http.Post)
-      |> request.set_header("content-type", "application/x-www-form-urlencoded")
-      |> request.set_body(body)
-      |> client_auth.setter
-    use req <- result.map(req)
-    req.body
-    |> uri.query_to_string()
-    |> request.set_body(req, _)
-  }
-  |> result.flatten()
+    |> result.replace_error(InvalidUri)
+  use req <- result.try(req)
+  req
+  |> request.set_method(http.Post)
+  |> request.set_header("content-type", "application/x-www-form-urlencoded")
+  |> request.set_body(body)
+  |> Ok
 }
 
 /// Encodes the ClientAuthentication that is to be sent to the OAuth 2.0 Server.
 /// For Basic Authentication it will always encode it with base64.
-pub fn authorization_setter(auth: ClientAuthentication) -> AuthorizationSetter {
+pub fn authorization_setter(auth: ClientAuthentication) -> RequestModifier {
   case auth {
     ClientSecretBasic(client_id, client_secret) -> fn(req: UrlEncRequest) {
       use <- bool.guard(
@@ -455,7 +424,6 @@ pub fn authorization_setter(auth: ClientAuthentication) -> AuthorizationSetter {
       |> Ok()
     }
   }
-  |> AuthorizationSetter()
 }
 
 /// Parses a token response and returns the access and refresh token if valid response, otherwise the error response.

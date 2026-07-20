@@ -1,7 +1,8 @@
 //// This module aims to implement [RFC7523](https://datatracker.ietf.org/doc/html/rfc7523) JSON Web Token (JWT) Profile for OAuth 2.0 Client Authentication and Authorization Grants.
-//// For more infomation on the Authorization Assertion Grant Type see [RFC7521](https://datatracker.ietf.org/doc/html/).
+//// For more infomation on the Authorization Assertion Grant Type see [RFC7521](https://datatracker.ietf.org/doc/html/rfc7521).
 
 import flwr_oauth2 as oauth
+import gleam/dict
 import gleam/http/request
 import gleam/option
 import gleam/uri
@@ -12,7 +13,7 @@ pub type JwtAuthorizationGrantRequest {
   JwtAuthorizationGrantRequest(
     token_endpoint: uri.Uri,
     assertion: String,
-    authorization: option.Option(oauth.ClientAuthentication),
+    authentication: option.Option(oauth.ClientAuthentication),
     scope: oauth.Scope,
   )
 }
@@ -20,24 +21,38 @@ pub type JwtAuthorizationGrantRequest {
 pub fn to_http_request(
   grant: JwtAuthorizationGrantRequest,
 ) -> Result(request.Request(String), oauth.RequestError) {
-  [#("grant_type", grant_type), #("assertion", grant.assertion)]
-  |> oauth.add_scope(grant.scope)
-  |> oauth.setup_request(
-    endpoint: grant.token_endpoint,
-    body: _,
-    client_auth: grant.authorization |> authorization_setter(),
+  let grant_modifier: oauth.RequestModifier = grant_modifier(_, grant)
+  oauth.ClientCredentialsGrantTokenRequest(
+    token_endpoint: grant.token_endpoint,
+    authentication: oauth.PublicAuthentication(oauth.ClientId("")),
+    scope: grant.scope,
   )
+  |> oauth.to_http_request_with_custom_authentication([
+    grant_modifier,
+    authorization_setter(grant.authentication),
+  ])
 }
 
-fn authorization_setter(authorization) {
+fn grant_modifier(
+  req: oauth.UrlEncRequest,
+  grant: JwtAuthorizationGrantRequest,
+) -> Result(oauth.UrlEncRequest, oauth.RequestError) {
+  req.body
+  |> dict.from_list()
+  |> dict.insert("grant_type", grant_type)
+  |> dict.insert("assertion", grant.assertion)
+  |> dict.to_list()
+  |> request.set_body(req, _)
+  |> Ok
+}
+
+fn authorization_setter(authorization) -> oauth.RequestModifier {
   authorization
   |> option.map(oauth.authorization_setter)
-  |> option.unwrap(
-    oauth.AuthorizationSetter(fn(req: oauth.UrlEncRequest) -> Result(
-      oauth.UrlEncRequest,
-      oauth.RequestError,
-    ) {
-      Ok(req)
-    }),
-  )
+  |> option.unwrap(fn(req: oauth.UrlEncRequest) -> Result(
+    oauth.UrlEncRequest,
+    oauth.RequestError,
+  ) {
+    Ok(req)
+  })
 }

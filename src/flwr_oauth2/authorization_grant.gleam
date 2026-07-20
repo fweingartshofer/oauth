@@ -340,7 +340,10 @@ fn parse_optional_field(
   |> option.from_result()
 }
 
-fn create_parse_error(res: Result(a, b), field: String) -> Result(a, ParseError) {
+fn create_parse_error(
+  res: Result(a, b),
+  field: String,
+) -> Result(a, ParseError) {
   res |> result.replace_error(ParseError(Some(field)))
 }
 
@@ -377,7 +380,7 @@ pub fn to_token_request_with_pkce_verifier(
 ) {
   case authorization_response {
     CodeGrantResponse(code:, state: _) -> {
-      flwr_oauth2.AuthorizationCodeGrantTokenRequestWithPKCE(
+      pkce.AuthorizationCodeGrantTokenRequestWithPKCE(
         token_endpoint:,
         authentication:,
         redirect_uri:,

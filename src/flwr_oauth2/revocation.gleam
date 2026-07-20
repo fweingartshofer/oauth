@@ -5,6 +5,7 @@
 
 import flwr_oauth2 as oauth
 import flwr_oauth2/helpers.{add_if_present}
+import gleam/dict
 import gleam/http/request
 import gleam/http/response
 import gleam/option
@@ -40,23 +41,39 @@ pub type RevocationResponse {
 pub fn to_http_request(
   revocation_request revocation_request: RevocationRequest,
 ) -> Result(request.Request(String), oauth.RequestError) {
-  let hint = {
-    use hint <- option.map(revocation_request.token_type_hint)
-    let token_type = case hint {
-      AccessToken -> "access_token"
-      RefreshToken -> "refresh_token"
-      Other(hint) -> hint
-    }
-    #("token_type_hint", token_type)
-  }
-  let body =
-    [#("token", revocation_request.token)]
-    |> add_if_present(hint)
-  oauth.setup_request(
-    endpoint: revocation_request.oauth_server,
-    body: body,
-    client_auth: revocation_request.credentials |> oauth.authorization_setter(),
+  oauth.ClientCredentialsGrantTokenRequest(
+    token_endpoint: revocation_request.oauth_server,
+    authentication: revocation_request.credentials,
+    scope: [],
   )
+  |> oauth.to_http_request_with_modifiers([
+    revocation_modifier(_, revocation_request),
+  ])
+}
+
+fn revocation_modifier(
+  request: oauth.UrlEncRequest,
+  revocation_request: RevocationRequest,
+) -> Result(oauth.UrlEncRequest, oauth.RequestError) {
+  request.body
+  |> dict.from_list()
+  |> dict.delete("grant_type")
+  |> dict.delete("scope")
+  |> dict.insert("token", revocation_request.token)
+  |> dict.to_list()
+  |> add_if_present(type_hint(revocation_request))
+  |> request.set_body(request, _)
+  |> Ok
+}
+
+fn type_hint(revocation_request: RevocationRequest) {
+  use hint <- option.map(revocation_request.token_type_hint)
+  let token_type = case hint {
+    AccessToken -> "access_token"
+    RefreshToken -> "refresh_token"
+    Other(hint) -> hint
+  }
+  #("token_type_hint", token_type)
 }
 
 /// Parses a revocation response as defined in [RFC7009](https://datatracker.ietf.org/doc/html/rfc7009#section-2.2).

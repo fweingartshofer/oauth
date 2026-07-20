@@ -1,8 +1,13 @@
 //// This module provides functions to create PKCE Verifiers and Challens as per [RFC7636](https://datatracker.ietf.org/doc/html/rfc7636).
 
+import flwr_oauth2
 import flwr_oauth2/helpers
 import gleam/bit_array
 import gleam/crypto
+import gleam/http/request
+import gleam/list
+import gleam/option
+import gleam/uri
 
 /// The code verifier
 pub type Verifier {
@@ -14,10 +19,80 @@ pub type Challenge {
   Challenge(value: String)
 }
 
+pub type AuthorizationCodeGrantTokenRequestWithPKCE {
+  /// A token request for the Authorization Code Grant Type with a PKCE code verifier.
+  /// Use the [`AuthorizationCodeGrantRedirectUri`](#AuthorizationCodeGrantRedirectUri) to retrieve the `code`.
+  /// See [RFC6749 Authorization Code Grant](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1) and [RFC7636](https://datatracker.ietf.org/doc/html/rfc7636).
+  AuthorizationCodeGrantTokenRequestWithPKCE(
+    token_endpoint: uri.Uri,
+    authentication: flwr_oauth2.ClientAuthentication,
+    redirect_uri: option.Option(uri.Uri),
+    code: String,
+    code_verifier: String,
+  )
+}
+
 const valid_verifier_chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
   <> "abcdefghijklmnopqrstuvwxyz"
   <> "0123456789"
   <> "-._~"
+
+pub fn to_http_request(request: AuthorizationCodeGrantTokenRequestWithPKCE) {
+  let AuthorizationCodeGrantTokenRequestWithPKCE(
+    token_endpoint:,
+    authentication:,
+    redirect_uri:,
+    code:,
+    code_verifier:,
+  ) = request
+  flwr_oauth2.AuthorizationCodeGrantTokenRequest(
+    token_endpoint:,
+    authentication:,
+    redirect_uri:,
+    code:,
+  )
+  |> flwr_oauth2.to_http_request_with_modifiers([
+    code_verifier_modifier(code_verifier),
+  ])
+}
+
+fn code_verifier_modifier(code_verifier: String) {
+  fn(req: request.Request(List(#(String, String)))) {
+    req.body
+    |> list.append([
+      #("code_verifier", code_verifier),
+    ])
+    |> request.set_body(req, _)
+    |> Ok
+  }
+}
+
+pub fn to_string(request: AuthorizationCodeGrantTokenRequestWithPKCE) {
+  let AuthorizationCodeGrantTokenRequestWithPKCE(
+    token_endpoint:,
+    authentication:,
+    redirect_uri:,
+    code:,
+    code_verifier:,
+  ) = request
+  "AuthorizationCodeGrantTokenRequestWithPKCE("
+  <> "token_endpoint="
+  <> uri.to_string(token_endpoint)
+  <> ", "
+  <> "authentication="
+  <> flwr_oauth2.to_string_client_authentication(authentication)
+  <> ", "
+  <> "redirect_uri="
+  <> option.map(redirect_uri, uri.to_string)
+  |> option.unwrap("None")
+  <> ", "
+  <> "code="
+  <> code
+  <> ", "
+  <> "code_verifier="
+  <> code_verifier
+  <> ")"
+}
 
 /// Creates a new code verifier as per [RFC7636 4.1](https://datatracker.ietf.org/doc/html/rfc7636#section-4.1).
 /// Uses a default length for the verifier of 128.

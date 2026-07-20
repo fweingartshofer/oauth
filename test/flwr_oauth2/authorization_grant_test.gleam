@@ -271,7 +271,7 @@ pub fn to_token_request_with_pkce_verifier_test() {
     )
   // Then
   res
-  |> flwr_oauth2.to_string_token_request()
+  |> pkce.to_string()
   |> birdie.snap(
     "to_token_request_with_pkce_verifier creates valid token request",
   )
