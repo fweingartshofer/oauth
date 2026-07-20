@@ -1,3 +1,4 @@
+import flwr_oauth2
 import flwr_oauth2/jwt_profile
 import gleam/http
 import gleam/http/request
@@ -35,4 +36,20 @@ pub fn to_http_request_test() {
   resp
   |> should.be_ok()
   |> should.equal(expected)
+}
+
+pub fn to_authentication_test() {
+  // Given
+  let expected =
+    flwr_oauth2.ClientAssertion(
+      client_id: flwr_oauth2.ClientId("test"),
+      client_assertion: "jwt",
+      client_assertion_type: "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+    )
+
+  // When
+  let res = jwt_profile.to_authentication(flwr_oauth2.ClientId("test"), "jwt")
+
+  // Then
+  res |> should.equal(expected)
 }

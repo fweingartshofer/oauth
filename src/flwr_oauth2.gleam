@@ -105,6 +105,13 @@ pub type ClientAuthentication {
   ClientSecretPost(client_id: ClientId, client_secret: Secret)
   /// Use this type if the client is public and there is no client secret to be included.
   PublicAuthentication(client_id: ClientId)
+  /// Use this type if the OAuth 2.0 Server accepts a JWT assertion for client authentication.
+  /// See [RFC7523 Section 2.2](https://datatracker.ietf.org/doc/html/rfc7523#section-2.2)
+  ClientAssertion(
+    client_id: ClientId,
+    client_assertion: String,
+    client_assertion_type: String,
+  )
 }
 
 /// Errors returned by this module when creating requests
@@ -253,7 +260,7 @@ pub fn to_string_client_authentication(
   client_auth: ClientAuthentication,
 ) -> String {
   case client_auth {
-    ClientSecretBasic(client_id:, client_secret: _) ->
+    ClientSecretBasic(client_id:, ..) ->
       "ClientSecretBasic("
       <> "client_id="
       <> client_id.value
@@ -261,7 +268,7 @@ pub fn to_string_client_authentication(
       <> "client_secret=***"
       <> ")"
 
-    ClientSecretPost(client_id:, client_secret: _) ->
+    ClientSecretPost(client_id:, ..) ->
       "ClientSecretPost("
       <> "client_id="
       <> client_id.value
@@ -271,6 +278,15 @@ pub fn to_string_client_authentication(
 
     PublicAuthentication(client_id:) ->
       "PublicAuthentication(" <> "client_id=" <> client_id.value <> ")"
+    ClientAssertion(client_id:, client_assertion_type:, ..) ->
+      "ClientSecretJwt("
+      <> "client_id="
+      <> client_id.value
+      <> ", "
+      <> "client_assertion=***, "
+      <> "client_assertion_type="
+      <> client_assertion_type
+      <> ")"
   }
 }
 
@@ -416,6 +432,23 @@ pub fn authorization_setter(auth: ClientAuthentication) -> RequestModifier {
         |> list.append(
           [
             #("client_id", client_id.value),
+          ],
+          _,
+        )
+      req
+      |> request.set_body(body)
+      |> Ok()
+    }
+    ClientAssertion(client_id, client_assertion, client_assertion_type) -> fn(
+      req: UrlEncRequest,
+    ) {
+      let body =
+        req.body
+        |> list.append(
+          [
+            #("client_id", client_id.value),
+            #("client_assertion_type", client_assertion_type),
+            #("client_assertion", client_assertion),
           ],
           _,
         )

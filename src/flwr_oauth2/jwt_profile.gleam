@@ -9,6 +9,8 @@ import gleam/uri
 
 const grant_type = "urn:ietf:params:oauth:grant-type:jwt-bearer"
 
+const client_assertion_type = "urn:ietf:params:oauth:client-assertion-type:jwt-bearer"
+
 pub type JwtAuthorizationGrantRequest {
   JwtAuthorizationGrantRequest(
     token_endpoint: uri.Uri,
@@ -31,6 +33,10 @@ pub fn to_http_request(
     grant_modifier,
     authorization_setter(grant.authentication),
   ])
+}
+
+pub fn to_authentication(client_id: oauth.ClientId, client_assertion: String) {
+  oauth.ClientAssertion(client_id:, client_assertion:, client_assertion_type:)
 }
 
 fn grant_modifier(
