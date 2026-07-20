@@ -201,13 +201,32 @@ pub fn make_redirect_uri(
   )
 }
 
-/// Parses the redirect URI, with the code for the code grant type or the access token for the implicit grant type.
-/// See [Section 4.1.2](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.2)
-pub fn parse_authorization_response(
+/// Parses the authorization code response from the query parameters of an HTTP request.
+/// This handles the Authorization Code Grant per [Section 4.1.2](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.2).
+/// For the Implicit Grant, use [`parse_authorization_response_for_implicit_grant`](#parse_authorization_response_for_implicit_grant)
+/// since parameters are in the fragment component per [Section 4.2.2](https://datatracker.ietf.org/doc/html/rfc6749#section-4.2.2).
+pub fn parse_authorization_response_for_code_grant(
   req: request.Request(_),
 ) -> Result(AuthorizationResponse, ParseError) {
-  let query =
-    req.query
+  req.query
+  |> parse_authorization_response_url_form_encoded()
+}
+
+/// Parses the redirect URI from the authorization server response.
+/// For the Authorization Code Grant (RFC6749 §4.1.2), parameters are in the query component.
+/// For the Implicit Grant (RFC6749 §4.2.2), parameters are in the fragment component.
+pub fn parse_authorization_response_for_implicit_grant(
+  uri: uri.Uri,
+) -> Result(AuthorizationResponse, ParseError) {
+  uri.fragment
+  |> parse_authorization_response_url_form_encoded()
+}
+
+fn parse_authorization_response_url_form_encoded(
+  url_encoded_response: option.Option(String),
+) -> Result(AuthorizationResponse, ParseError) {
+  let payload =
+    url_encoded_response
     |> option.map(uri.parse_query)
     |> option.to_result(Nil)
     |> result.flatten()
@@ -219,7 +238,7 @@ pub fn parse_authorization_response(
       }
     })
     |> result.flatten
-  use pairs <- result.try(query)
+  use pairs <- result.try(payload)
   let query = pairs |> dict.from_list()
   parse_authorization_response_query(query)
 }

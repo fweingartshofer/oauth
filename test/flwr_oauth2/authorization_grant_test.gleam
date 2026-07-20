@@ -66,7 +66,7 @@ pub fn parse_authorization_error_response_test() {
     ])
 
   // When
-  let assert Ok(res) = oauth.parse_authorization_response(req)
+  let assert Ok(res) = oauth.parse_authorization_response_for_code_grant(req)
 
   // Then
   res
@@ -86,7 +86,7 @@ pub fn parse_authorization_error_response_invalid_uri_test() {
     ])
 
   // When
-  let assert Error(res) = oauth.parse_authorization_response(req)
+  let assert Error(res) = oauth.parse_authorization_response_for_code_grant(req)
 
   // Then
   res
@@ -106,7 +106,7 @@ pub fn parse_authorization_code_response_test() {
     ])
 
   // When
-  let assert Ok(res) = oauth.parse_authorization_response(req)
+  let assert Ok(res) = oauth.parse_authorization_response_for_code_grant(req)
 
   // Then
   res
@@ -121,7 +121,7 @@ pub fn parse_empty_authorization_response_test() {
     |> request.set_query([])
 
   // When
-  let assert Error(res) = oauth.parse_authorization_response(req)
+  let assert Error(res) = oauth.parse_authorization_response_for_code_grant(req)
 
   // Then
   res
@@ -131,18 +131,21 @@ pub fn parse_empty_authorization_response_test() {
 
 pub fn parse_authorization_implicit_response_test() {
   // Given
-  let req =
-    request.new()
-    |> request.set_query([
+  let fragment =
+    [
       #("access_token", "token"),
       #("token_type", "Bearer"),
       #("expires_in", "3600"),
       #("scope", "read write"),
       #("state", "asdf"),
-    ])
+    ]
+    |> uri.query_to_string()
+    |> option.Some
+  let req = uri.Uri(..uri.empty, fragment:)
 
   // When
-  let assert Ok(res) = oauth.parse_authorization_response(req)
+  let assert Ok(res) =
+    oauth.parse_authorization_response_for_implicit_grant(req)
 
   // Then
   res
@@ -152,17 +155,20 @@ pub fn parse_authorization_implicit_response_test() {
 
 pub fn parse_authorization_implicit_response_without_token_type_test() {
   // Given
-  let req =
-    request.new()
-    |> request.set_query([
+  let fragment =
+    [
       #("access_token", "token"),
       #("expires_in", "3600"),
       #("scope", "read write"),
       #("state", "asdf"),
-    ])
+    ]
+    |> uri.query_to_string()
+    |> option.Some
+  let req = uri.Uri(..uri.empty, fragment:)
 
   // When
-  let assert Error(res) = oauth.parse_authorization_response(req)
+  let assert Error(res) =
+    oauth.parse_authorization_response_for_implicit_grant(req)
 
   // Then
   res
@@ -174,18 +180,22 @@ pub fn parse_authorization_implicit_response_without_token_type_test() {
 
 pub fn parse_authorization_implicit_response_with_invalid_expires_in_test() {
   // Given
-  let req =
-    request.new()
-    |> request.set_query([
+  let fragment =
+    [
       #("access_token", "token"),
       #("token_type", "Bearer"),
       #("expires_in", "string"),
       #("scope", "read write"),
       #("state", "asdf"),
-    ])
+    ]
+    |> uri.query_to_string()
+    |> option.Some
+
+  let req = uri.Uri(..uri.empty, fragment:)
 
   // When
-  let assert Error(res) = oauth.parse_authorization_response(req)
+  let assert Error(res) =
+    oauth.parse_authorization_response_for_implicit_grant(req)
 
   // Then
   res
