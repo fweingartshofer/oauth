@@ -1,9 +1,9 @@
-import flwr_oauth2.{
-  type AccessTokenResponse, type ClientId, type Scope, AccessTokenResponse,
-  AuthorizationCodeGrantTokenRequest,
-}
+import flwr_oauth2/authentication
+import flwr_oauth2/common
 import flwr_oauth2/helpers
 import flwr_oauth2/pkce
+import flwr_oauth2/response.{type AccessTokenResponse, AccessTokenResponse}
+import flwr_oauth2/token_request
 import gleam/dict
 import gleam/http/request
 import gleam/int
@@ -43,8 +43,8 @@ pub type AuthorizationCodeGrantRequest {
     authorization_endpoint: uri.Uri,
     response_type: ResponseType,
     redirect_uri: option.Option(uri.Uri),
-    client_id: ClientId,
-    scope: Scope,
+    client_id: common.ClientId,
+    scope: common.Scope,
     state: option.Option(State),
     code_challenge: option.Option(String),
     code_challenge_method: option.Option(CodeChallengeMethod),
@@ -75,7 +75,7 @@ pub fn to_string(resp: AuthorizationResponse) {
     resp.state |> option.map(fn(s) { s.value }) |> option.unwrap("None")
   case resp {
     ImplicitGrantResponse(token:, state: _) -> {
-      let token_response = flwr_oauth2.to_string_token_response(token)
+      let token_response = response.to_string(token)
       "ImplicitGrantResponse(
   token: " <> token_response <> ",
   state: " <> state <> "
@@ -112,7 +112,7 @@ pub fn new() -> AuthorizationCodeGrantRequest {
     authorization_endpoint: uri.empty,
     response_type: Token,
     redirect_uri: option.None,
-    client_id: flwr_oauth2.ClientId(""),
+    client_id: common.ClientId(""),
     scope: [],
     state: option.None,
     code_challenge: option.None,
@@ -141,11 +141,14 @@ pub fn set_redirect_uri(
   AuthorizationCodeGrantRequest(..req, redirect_uri: Some(redirect_uri))
 }
 
-pub fn set_client_id(req: AuthorizationCodeGrantRequest, client_id: ClientId) {
+pub fn set_client_id(
+  req: AuthorizationCodeGrantRequest,
+  client_id: common.ClientId,
+) {
   AuthorizationCodeGrantRequest(..req, client_id:)
 }
 
-pub fn set_scope(req: AuthorizationCodeGrantRequest, scope: Scope) {
+pub fn set_scope(req: AuthorizationCodeGrantRequest, scope: common.Scope) {
   AuthorizationCodeGrantRequest(..req, scope:)
 }
 
@@ -172,11 +175,11 @@ pub fn make_redirect_uri(
   let state =
     redirect_config.state
     |> option.map(fn(x) { x.value })
-    |> option.map(helpers.wrap_tuple("state", _))
+    |> option.map(fn(x) { #("state", x) })
   let redirect_uri = helpers.encode_redirect_uri(redirect_config.redirect_uri)
   let code_challenge =
     redirect_config.code_challenge
-    |> option.map(helpers.wrap_tuple("code_challenge", _))
+    |> option.map(fn(x) { #("code_challenge", x) })
   let code_challenge_method =
     redirect_config.code_challenge_method
     |> option.map(fn(x) {
@@ -286,7 +289,7 @@ fn parse_authorization_implicit_response(
   let scope =
     query
     |> parse_optional_field("scope")
-    |> option.map(flwr_oauth2.parse_scope)
+    |> option.map(common.parse_scope)
     |> option.unwrap([])
 
   let state =
@@ -371,12 +374,12 @@ fn create_parse_error(
 pub fn to_token_request(
   authorization_response: AuthorizationResponse,
   token_endpoint: uri.Uri,
-  authentication: flwr_oauth2.ClientAuthentication,
+  authentication: authentication.ClientAuthentication,
   redirect_uri: option.Option(uri.Uri),
 ) {
   case authorization_response {
     CodeGrantResponse(code:, state: _) -> {
-      AuthorizationCodeGrantTokenRequest(
+      token_request.AuthorizationCodeGrantTokenRequest(
         token_endpoint:,
         authentication:,
         redirect_uri:,
@@ -393,7 +396,7 @@ pub fn to_token_request(
 pub fn to_token_request_with_pkce_verifier(
   authorization_response: AuthorizationResponse,
   token_endpoint: uri.Uri,
-  authentication: flwr_oauth2.ClientAuthentication,
+  authentication: authentication.ClientAuthentication,
   redirect_uri: option.Option(uri.Uri),
   verifier: pkce.Verifier,
 ) {

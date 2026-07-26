@@ -1,4 +1,6 @@
-import flwr_oauth2 as oauth
+import flwr_oauth2/authentication
+import flwr_oauth2/common
+import flwr_oauth2/response as oauth_response
 import flwr_oauth2/revocation
 import gleam/http
 import gleam/http/request
@@ -15,7 +17,7 @@ pub fn to_http_request_with_revocation_of_access_token_test() {
       server,
       "token",
       option.Some(revocation.AccessToken),
-      oauth.PublicAuthentication(oauth.ClientId("client-id")),
+      authentication.PublicAuthentication(common.ClientId("client-id")),
     )
   let expected =
     request.Request(
@@ -23,7 +25,7 @@ pub fn to_http_request_with_revocation_of_access_token_test() {
       headers: [
         #("content-type", "application/x-www-form-urlencoded"),
       ],
-      body: "token_type_hint=access_token&client_id=client-id&token=token",
+      body: "client_id=client-id&token_type_hint=access_token&token=token",
       scheme: http.Https,
       host: "example.com",
       port: option.None,
@@ -56,7 +58,7 @@ pub fn parse_revocation_response_with_success_response_test() {
 pub fn parse_revocation_response_with_error_response_test() {
   // Given
   let expected =
-    oauth.ErrorResponse(
+    oauth_response.ErrorResponse(
       400,
       "unsupported_token_type",
       option.Some("This token type is not supported"),

@@ -1,7 +1,8 @@
 //// This module provides functions to create PKCE Verifiers and Challens as per [RFC7636](https://datatracker.ietf.org/doc/html/rfc7636).
 
-import flwr_oauth2
+import flwr_oauth2/authentication
 import flwr_oauth2/helpers
+import flwr_oauth2/token_request
 import gleam/bit_array
 import gleam/crypto
 import gleam/http/request
@@ -25,7 +26,7 @@ pub type AuthorizationCodeGrantTokenRequestWithPKCE {
   /// See [RFC6749 Authorization Code Grant](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1) and [RFC7636](https://datatracker.ietf.org/doc/html/rfc7636).
   AuthorizationCodeGrantTokenRequestWithPKCE(
     token_endpoint: uri.Uri,
-    authentication: flwr_oauth2.ClientAuthentication,
+    authentication: authentication.ClientAuthentication,
     redirect_uri: option.Option(uri.Uri),
     code: String,
     code_verifier: String,
@@ -45,13 +46,13 @@ pub fn to_http_request(request: AuthorizationCodeGrantTokenRequestWithPKCE) {
     code:,
     code_verifier:,
   ) = request
-  flwr_oauth2.AuthorizationCodeGrantTokenRequest(
+  token_request.AuthorizationCodeGrantTokenRequest(
     token_endpoint:,
     authentication:,
     redirect_uri:,
     code:,
   )
-  |> flwr_oauth2.to_http_request_with_modifiers([
+  |> token_request.to_http_request_with_modifiers([
     code_verifier_modifier(code_verifier),
   ])
 }
@@ -70,7 +71,7 @@ fn code_verifier_modifier(code_verifier: String) {
 pub fn to_string(request: AuthorizationCodeGrantTokenRequestWithPKCE) {
   let AuthorizationCodeGrantTokenRequestWithPKCE(
     token_endpoint:,
-    authentication:,
+    authentication: auth,
     redirect_uri:,
     code:,
     code_verifier:,
@@ -80,7 +81,7 @@ pub fn to_string(request: AuthorizationCodeGrantTokenRequestWithPKCE) {
   <> uri.to_string(token_endpoint)
   <> ", "
   <> "authentication="
-  <> flwr_oauth2.to_string_client_authentication(authentication)
+  <> authentication.to_string(auth)
   <> ", "
   <> "redirect_uri="
   <> option.map(redirect_uri, uri.to_string)

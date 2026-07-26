@@ -1,7 +1,10 @@
 import birdie
 import flwr_oauth2
+import flwr_oauth2/authentication
 import flwr_oauth2/authorization_grant as oauth
+import flwr_oauth2/common
 import flwr_oauth2/pkce
+import flwr_oauth2/response
 import gleam/http/request
 import gleam/option
 import gleam/string
@@ -32,7 +35,7 @@ pub fn make_redirect_uri_test() {
   let response_type = oauth.Code
   let redirect_uri =
     uri.parse("http://localhost:8080/callback") |> option.from_result
-  let client_id = flwr_oauth2.ClientId("client-id")
+  let client_id = common.ClientId("client-id")
   let scope = ["scope1", "scope2"]
   let state = option.Some(oauth.State("state"))
   let redirect_config =
@@ -217,9 +220,9 @@ pub fn to_token_request_test() {
     oauth.to_token_request(
       response,
       token_endpoint,
-      flwr_oauth2.ClientSecretPost(
-        flwr_oauth2.ClientId("client-id"),
-        flwr_oauth2.Secret("secret"),
+      authentication.ClientSecretPost(
+        common.ClientId("client-id"),
+        common.Secret("secret"),
       ),
       option.Some(origin),
     )
@@ -234,7 +237,7 @@ pub fn to_token_request_with_invalid_response_test() {
   let response =
     oauth.ImplicitGrantResponse(
       option.Some(oauth.State("state")),
-      flwr_oauth2.AccessTokenResponse(
+      response.AccessTokenResponse(
         "access_token",
         "Bearer",
         option.None,
@@ -250,9 +253,9 @@ pub fn to_token_request_with_invalid_response_test() {
     oauth.to_token_request(
       response,
       token_endpoint,
-      flwr_oauth2.ClientSecretPost(
-        flwr_oauth2.ClientId("client-id"),
-        flwr_oauth2.Secret("secret"),
+      authentication.ClientSecretPost(
+        common.ClientId("client-id"),
+        common.Secret("secret"),
       ),
       option.Some(origin),
     )
@@ -272,9 +275,9 @@ pub fn to_token_request_with_pkce_verifier_test() {
     oauth.to_token_request_with_pkce_verifier(
       response,
       token_endpoint,
-      flwr_oauth2.ClientSecretPost(
-        flwr_oauth2.ClientId("client-id"),
-        flwr_oauth2.Secret("secret"),
+      authentication.ClientSecretPost(
+        common.ClientId("client-id"),
+        common.Secret("secret"),
       ),
       option.Some(origin),
       pkce.Verifier("verifier"),
@@ -292,7 +295,7 @@ pub fn to_token_request_with_pkce_verifier_with_invalid_response_test() {
   let response =
     oauth.ImplicitGrantResponse(
       option.Some(oauth.State("state")),
-      flwr_oauth2.AccessTokenResponse(
+      response.AccessTokenResponse(
         "access_token",
         "Bearer",
         option.None,
@@ -308,9 +311,9 @@ pub fn to_token_request_with_pkce_verifier_with_invalid_response_test() {
     oauth.to_token_request_with_pkce_verifier(
       response,
       token_endpoint,
-      flwr_oauth2.ClientSecretPost(
-        flwr_oauth2.ClientId("client-id"),
-        flwr_oauth2.Secret("secret"),
+      authentication.ClientSecretPost(
+        common.ClientId("client-id"),
+        common.Secret("secret"),
       ),
       option.Some(origin),
       pkce.Verifier("verifier"),

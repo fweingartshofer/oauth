@@ -1,5 +1,5 @@
-import flwr_oauth2 as oauth
 import flwr_oauth2/bearer_token
+import flwr_oauth2/response
 import gleam/http/request
 import gleam/option
 import gleeunit/should
@@ -7,7 +7,7 @@ import gleeunit/should
 pub fn attach_bearer_token_header_test() {
   // Given
   let token =
-    oauth.AccessTokenResponse(
+    response.AccessTokenResponse(
       "token",
       "Bearer",
       option.Some(3600),
@@ -29,7 +29,7 @@ pub fn attach_bearer_token_header_test() {
 pub fn attach_bearer_token_to_body_test() {
   // Given
   let token =
-    oauth.AccessTokenResponse(
+    response.AccessTokenResponse(
       "token",
       "Bearer",
       option.Some(3600),
@@ -51,7 +51,7 @@ pub fn attach_bearer_token_to_body_test() {
 pub fn attach_bearer_token_to_query_params_test() {
   // Given
   let token =
-    oauth.AccessTokenResponse(
+    response.AccessTokenResponse(
       "token",
       "Bearer",
       option.Some(3600),

@@ -21,7 +21,7 @@ pub fn set_basic(
 ) {
   req
   |> request.set_header(
-    "Authorization",
+    authorization_header,
     "Basic " <> encode_base64(client_id, client_secret),
   )
 }

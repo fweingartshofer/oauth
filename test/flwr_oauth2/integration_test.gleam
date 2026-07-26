@@ -1,6 +1,9 @@
 import envoy
 import flwr_oauth2 as oauth2
+import flwr_oauth2/authentication
+import flwr_oauth2/common
 import flwr_oauth2/helpers
+import flwr_oauth2/token_request
 import gleam/bool
 import gleam/hackney
 import gleam/io
@@ -17,11 +20,11 @@ pub fn client_credential_grant_with_http_port_retrieves_tokens_test() {
     )
 
   let token_request =
-    oauth2.ClientCredentialsGrantTokenRequest(
+    token_request.ClientCredentialsGrantTokenRequest(
       server,
-      oauth2.ClientSecretPost(
-        oauth2.ClientId("credentials-client"),
-        oauth2.Secret("client-secret"),
+      authentication.ClientSecretPost(
+        common.ClientId("credentials-client"),
+        common.Secret("client-secret"),
       ),
       ["openid"],
     )
@@ -46,11 +49,11 @@ pub fn client_credential_grant_with_authorization_basic_retrieves_tokens_test() 
     )
 
   let token_request =
-    oauth2.ClientCredentialsGrantTokenRequest(
+    token_request.ClientCredentialsGrantTokenRequest(
       server,
-      oauth2.ClientSecretBasic(
-        oauth2.ClientId("credentials-client"),
-        oauth2.Secret("client-secret"),
+      authentication.ClientSecretBasic(
+        common.ClientId("credentials-client"),
+        common.Secret("client-secret"),
       ),
       ["openid"],
     )
@@ -77,6 +80,6 @@ fn run_integration_tests(integration_test: fn(Nil) -> b) {
     Nil
   }
   bool.lazy_guard(result, wrapper, fn() {
-    io.println_error("Skipping integration tests")
+    io.print("Skipping integration test")
   })
 }

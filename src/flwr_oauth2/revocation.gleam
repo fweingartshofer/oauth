@@ -3,9 +3,10 @@
 //// Which token types are supported depends on the OAuth 2.0 server.
 //// If the server implements RFC7009 it must support revocation of refresh tokens and should support the revocation of access tokens.
 
-import flwr_oauth2 as oauth
-import flwr_oauth2/helpers.{add_if_present}
-import gleam/dict
+import flwr_oauth2/authentication
+import flwr_oauth2/helpers
+import flwr_oauth2/response as oauth_response
+import flwr_oauth2/token_request
 import gleam/http/request
 import gleam/http/response
 import gleam/option
@@ -17,7 +18,7 @@ pub type RevocationRequest {
     oauth_server: uri.Uri,
     token: String,
     token_type_hint: option.Option(TokenTypeHint),
-    credentials: oauth.ClientAuthentication,
+    credentials: authentication.ClientAuthentication,
   )
 }
 
@@ -40,30 +41,16 @@ pub type RevocationResponse {
 /// Formats a revocation request into a valid gleam http request.
 pub fn to_http_request(
   revocation_request revocation_request: RevocationRequest,
-) -> Result(request.Request(String), oauth.RequestError) {
-  oauth.ClientCredentialsGrantTokenRequest(
-    token_endpoint: revocation_request.oauth_server,
-    authentication: revocation_request.credentials,
-    scope: [],
+) -> Result(request.Request(String), token_request.RequestError) {
+  let body =
+    [#("token", revocation_request.token)]
+    |> helpers.add_if_present(type_hint(revocation_request))
+  token_request.build_post_request(
+    revocation_request.oauth_server,
+    body,
+    revocation_request.credentials,
+    [],
   )
-  |> oauth.to_http_request_with_modifiers([
-    revocation_modifier(_, revocation_request),
-  ])
-}
-
-fn revocation_modifier(
-  request: oauth.UrlEncRequest,
-  revocation_request: RevocationRequest,
-) -> Result(oauth.UrlEncRequest, oauth.RequestError) {
-  request.body
-  |> dict.from_list()
-  |> dict.delete("grant_type")
-  |> dict.delete("scope")
-  |> dict.insert("token", revocation_request.token)
-  |> dict.to_list()
-  |> add_if_present(type_hint(revocation_request))
-  |> request.set_body(request, _)
-  |> Ok
 }
 
 fn type_hint(revocation_request: RevocationRequest) {
@@ -81,9 +68,9 @@ fn type_hint(revocation_request: RevocationRequest) {
 /// Any other status code is an error response and will be parsed accordingly.
 pub fn parse_revocation_response(
   revocation_response: response.Response(String),
-) -> Result(RevocationResponse, oauth.ResponseError) {
+) -> Result(RevocationResponse, oauth_response.ResponseError) {
   case revocation_response.status {
     200 -> Ok(RevocationResponse)
-    _ -> oauth.parse_error_response(revocation_response) |> Error()
+    _ -> oauth_response.parse_error_response(revocation_response) |> Error()
   }
 }

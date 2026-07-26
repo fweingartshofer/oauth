@@ -1,4 +1,5 @@
-import flwr_oauth2 as oauth2
+import flwr_oauth2/authentication
+import flwr_oauth2/common
 import flwr_oauth2/pkce
 import gleam/http
 import gleam/http/request
@@ -36,7 +37,10 @@ pub fn to_http_request_with_pkce_test() {
   let token_request =
     pkce.AuthorizationCodeGrantTokenRequestWithPKCE(
       server,
-      oauth2.ClientSecretBasic(oauth2.ClientId("test"), oauth2.Secret("test")),
+      authentication.ClientSecretBasic(
+        common.ClientId("test"),
+        common.Secret("test"),
+      ),
       option.Some(redirect_uri),
       "asdf",
       "code_verifier",

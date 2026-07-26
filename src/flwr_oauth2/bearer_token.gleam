@@ -1,7 +1,8 @@
 //// This module aims to fulfill most of [RFC6750](https://datatracker.ietf.org/doc/html/rfc6750) for attaching an access token to an HTTP request to a protected resource.
 
-import flwr_oauth2 as oauth
 import flwr_oauth2/http_headers
+import flwr_oauth2/response
+import flwr_oauth2/token_request
 import gleam/http/request
 import gleam/list
 
@@ -9,7 +10,7 @@ import gleam/list
 /// See [RFC6750](https://datatracker.ietf.org/doc/html/rfc6750#section-2.1).
 pub fn attach_bearer_token_header(
   req: request.Request(a),
-  token: oauth.AccessTokenResponse,
+  token: response.AccessTokenResponse,
 ) -> request.Request(a) {
   attach_bearer_token_string_to_header(req, token.access_token)
 }
@@ -27,17 +28,17 @@ pub fn attach_bearer_token_string_to_header(
 /// It does not set the content type to `application/x-www-form-urlencoded`, but in order to send the body with the access token to a server it has to be set and the body needs to be url encoded.
 /// See [RFC6750](https://datatracker.ietf.org/doc/html/rfc6750#section-2.2).
 pub fn attach_access_token_to_body(
-  req: oauth.UrlEncRequest,
-  token: oauth.AccessTokenResponse,
-) -> oauth.UrlEncRequest {
+  req: token_request.UrlEncRequest,
+  token: response.AccessTokenResponse,
+) -> token_request.UrlEncRequest {
   attach_access_token_string_to_body(req, token.access_token)
 }
 
 /// See [attach_access_token_to_body](#attach_access_token_to_body)
 pub fn attach_access_token_string_to_body(
-  req: oauth.UrlEncRequest,
+  req: token_request.UrlEncRequest,
   access_token: String,
-) -> oauth.UrlEncRequest {
+) -> token_request.UrlEncRequest {
   req.body
   |> list.prepend(access_token_tuple(access_token))
   |> request.set_body(req, _)
@@ -47,7 +48,7 @@ pub fn attach_access_token_string_to_body(
 /// See [RFC6750](https://datatracker.ietf.org/doc/html/rfc6750#section-2.3).
 pub fn attach_access_token_to_query_parameters(
   req: request.Request(a),
-  token: oauth.AccessTokenResponse,
+  token: response.AccessTokenResponse,
 ) -> request.Request(a) {
   attach_access_token_string_to_query_parameters(req, token.access_token)
 }

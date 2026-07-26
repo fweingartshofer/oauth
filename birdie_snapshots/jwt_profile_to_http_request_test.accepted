@@ -1,0 +1,10 @@
+---
+version: 1.5.4
+title: JWT Profile to_http_request Test
+file: ./test/flwr_oauth2/assertions_test.gleam
+test_name: to_jwt_http_request_test
+---
+POST https://example.com
+content-type: application/x-www-form-urlencoded
+
+grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer&assertion=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30

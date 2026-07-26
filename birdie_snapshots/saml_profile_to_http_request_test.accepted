@@ -1,10 +1,10 @@
 ---
 version: 1.5.4
 title: SAML Profile to_http_request Test
-file: ./test/flwr_oauth2/saml_profile_test.gleam
-test_name: to_http_request_test
+file: ./test/flwr_oauth2/assertions_test.gleam
+test_name: to_saml_http_request_test
 ---
 POST https://example.com
 content-type: application/x-www-form-urlencoded
 
-assertion=PHN...%3D&grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Asaml2-bearer
+grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Asaml2-bearer&assertion=PHN...%3D
