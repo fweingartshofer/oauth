@@ -64,3 +64,5 @@ This package aims to implement the most common ones.
   - [x] [RFC7523 JWT Profile Authorization Grant Kind](https://datatracker.ietf.org/doc/html/rfc7523)
 - [ ] [RFC7591 Dynamic Client Creation](https://datatracker.ietf.org/doc/html/rfc7591)
 - [x] [RFC7636 PKCE Extension for OAuth 2.0](https://datatracker.ietf.org/doc/html/rfc7636)
+- [x] Parsing and serializing of [RFC7517 JSON Web Key (JWK)](https://datatracker.ietf.org/doc/html/rfc7517)
+
