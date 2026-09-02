@@ -1,8 +1,12 @@
 import gleam/bool
+import gleam/dynamic/decode.{type Decoder}
+import gleam/json.{type Json}
 import gleam/list
+import gleam/option.{type Option}
 import gleam/order
 import gleam/string
 import gleam/time/timestamp
+import gleam/uri.{type Uri}
 
 /// Type alias for the scope.
 /// A scope is a list of strings.
@@ -63,4 +67,39 @@ pub fn parse_scope(scope: String) -> Scope {
 
 fn string_not_empty(l: String) -> Bool {
   !string.is_empty(l)
+}
+
+pub fn uri_decoder(raw_uri: String) -> Decoder(Uri) {
+  case uri.parse(raw_uri) {
+    Ok(res) -> decode.success(res)
+    _ -> decode.failure(uri.empty, "Invalid URI")
+  }
+}
+
+pub fn uri_to_json(raw_uri: Uri) -> Json {
+  json.string(uri.to_string(raw_uri))
+}
+
+pub fn json_attach_member(
+  entries: List(#(String, Json)),
+  name: String,
+  value: Option(a),
+  to_json: fn(a) -> Json,
+) -> List(#(String, Json)) {
+  case value |> option.map(to_json) {
+    option.Some(value) -> list.append(entries, [#(name, value)])
+    option.None -> entries
+  }
+}
+
+pub fn json_attach_list_member(
+  entries: List(#(String, Json)),
+  name: String,
+  values: List(a),
+  to_json: fn(a) -> Json,
+) -> List(#(String, Json)) {
+  case values {
+    [] -> entries
+    _ -> list.append(entries, [#(name, json.array(values, to_json))])
+  }
 }

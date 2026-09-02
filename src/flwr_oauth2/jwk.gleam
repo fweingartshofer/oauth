@@ -1,7 +1,9 @@
 /// This module implements [RFC7517 JSON Web Key (JWK)](https://datatracker.ietf.org/doc/html/rfc7517)
+import flwr_oauth2/common.{
+  json_attach_list_member, json_attach_member, uri_decoder, uri_to_json,
+}
 import gleam/dynamic/decode.{type Decoder}
 import gleam/json.{type Json}
-import gleam/list
 import gleam/option.{type Option}
 import gleam/uri.{type Uri}
 
@@ -103,7 +105,7 @@ pub fn json_web_key_to_json(json_web_key: JsonWebKey) -> Json {
   |> json_attach_list_member("key_ops", key_ops, key_operation_to_json)
   |> json_attach_member("alg", alg, algorithm_to_json)
   |> json_attach_member("kid", kid, json.string)
-  |> json_attach_member("x5u", x5u, fn(x5u) { json.string(uri.to_string(x5u)) })
+  |> json_attach_member("x5u", x5u, uri_to_json)
   |> json_attach_list_member("x5c", x5c, json.string)
   |> json_attach_member("x5t", x5t, json.string)
   |> json_attach_member("x5t#S256", x5t_s256, json.string)
@@ -258,36 +260,5 @@ fn algorithm_to_json(algorithm: Algorithm) -> Json {
     HS256 -> json.string("HS256")
     None -> json.string("none")
     OtherAlgorithm(value:) -> json.string(value)
-  }
-}
-
-fn uri_decoder(raw_uri: String) -> Decoder(Uri) {
-  case uri.parse(raw_uri) {
-    Ok(x5u) -> decode.success(x5u)
-    _ -> decode.failure(uri.empty, "Invalid URI")
-  }
-}
-
-fn json_attach_member(
-  entries: List(#(String, Json)),
-  name: String,
-  value: Option(a),
-  to_json: fn(a) -> Json,
-) -> List(#(String, Json)) {
-  case value |> option.map(to_json) {
-    option.Some(value) -> list.append(entries, [#(name, value)])
-    option.None -> entries
-  }
-}
-
-fn json_attach_list_member(
-  entries: List(#(String, Json)),
-  name: String,
-  values: List(a),
-  to_json: fn(a) -> Json,
-) -> List(#(String, Json)) {
-  case values {
-    [] -> entries
-    _ -> list.append(entries, [#(name, json.array(values, to_json))])
   }
 }
