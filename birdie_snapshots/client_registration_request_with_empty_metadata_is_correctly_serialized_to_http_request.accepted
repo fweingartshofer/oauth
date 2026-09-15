@@ -1,0 +1,11 @@
+---
+version: 1.5.4
+title: Client Registration Request with empty metadata is correctly serialized to HTTP Request
+file: ./test/flwr_oauth2/client_registration_test.gleam
+test_name: to_http_request_without_metadata_correctly_serializes_data_test
+---
+POST https://localhost
+content-type: application/json
+accept: application/json
+
+{}

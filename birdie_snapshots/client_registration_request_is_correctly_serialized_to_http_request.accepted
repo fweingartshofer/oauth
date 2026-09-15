@@ -1,0 +1,12 @@
+---
+version: 1.5.4
+title: Client Registration Request is correctly serialized to HTTP Request
+file: ./test/flwr_oauth2/client_registration_test.gleam
+test_name: to_http_request_correctly_serializes_data_test
+---
+POST https://localhost
+authorization: Bearer asdf
+content-type: application/json
+accept: application/json
+
+{"redirect_uris":["http://localhost:8080/"],"software_statement":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30","token_endpoint_auth_method":"client_secret_basic","grant_types":["authorization_code"],"response_types":["code"],"client_name":"gleam-client","client_name#de-AT":"Gleam Klient","client_uri":"http://localhost:8080/","client_uri#de-AT":"http://localhost:8080/de-AT","logo_uri":"http://localhost:8080/logo.svg","logo_uri#de-AT":"http://localhost:8080/de-AT/logo.svg","scope":"read write","contacts":["info@example.com"],"tos_uri":"http://localhost:8080/tos","tos_uri#de-AT":"http://localhost:8080/de-AT/tos","policy_uri":"http://localhost:8080/policy","policy_uri#de-AT":"http://localhost:8080/de-AT/policy","jwks_uri":"http://localhost:8080/uri","software_id":"unique-id","software_version":"v1.0.1"}

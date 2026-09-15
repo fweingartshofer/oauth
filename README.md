@@ -11,7 +11,7 @@ compatibility with as many use cases as possible.
 [![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/flwr_oauth2/)
 
 ```sh
-gleam add flwr_oauth2@3.0.0
+gleam add flwr_oauth2@3.1.0
 ```
 
 ```gleam
@@ -62,7 +62,8 @@ This package aims to implement the most common ones.
 - [x] [RFC7521](https://datatracker.ietf.org/doc/html/)
   - [x] [RFC7522 SAML Profile Authorization Grant Kind](https://datatracker.ietf.org/doc/html/rfc7522)
   - [x] [RFC7523 JWT Profile Authorization Grant Kind](https://datatracker.ietf.org/doc/html/rfc7523)
-- [ ] [RFC7591 Dynamic Client Creation](https://datatracker.ietf.org/doc/html/rfc7591)
+- [x] [RFC7591 Dynamic Client Creation](https://datatracker.ietf.org/doc/html/rfc7591)
+- [ ] [RFC7592 Dynamic Client Registration Management Protocol](https://datatracker.ietf.org/doc/html/rfc7592)
 - [x] [RFC7636 PKCE Extension for OAuth 2.0](https://datatracker.ietf.org/doc/html/rfc7636)
 - [x] Parsing and serializing of [RFC7517 JSON Web Key (JWK)](https://datatracker.ietf.org/doc/html/rfc7517)
 
