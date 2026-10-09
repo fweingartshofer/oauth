@@ -4,7 +4,12 @@ import flwr_oauth2/common.{
   type Scope, json_attach_list_member, json_attach_member, uri_decoder,
   uri_to_json,
 }
+import flwr_oauth2/helpers
 import flwr_oauth2/jwk.{type JwkSet}
+import flwr_oauth2/response.{
+  type ResponseError, ParseError, UnsupportedContent, parse_error_response,
+} as _
+import flwr_oauth2/token_request
 import gleam/bool
 import gleam/dict.{type Dict}
 import gleam/dynamic
@@ -28,14 +33,23 @@ pub type ClientRegistrationRequest {
   )
 }
 
-pub type RequestError {
-  InvalidUri(uri: Uri)
-}
+pub type RequestError =
+  token_request.RequestError
 
 const application_json = "application/json"
 
+/// Creates an HTTP Request to create a client according to [RFC7591](https://datatracker.ietf.org/doc/html/rfc7591)
 pub fn to_http_request(
   client_registration_request: ClientRegistrationRequest,
+) -> Result(request.Request(String), RequestError) {
+  to_http_with_extensions_request(client_registration_request, [])
+}
+
+/// Creates an HTTP Request to create a client according to [RFC7591](https://datatracker.ietf.org/doc/html/rfc7591)
+/// Additionally, custom extensions can be added.
+pub fn to_http_with_extensions_request(
+  client_registration_request: ClientRegistrationRequest,
+  extensions: List(#(String, Json)),
 ) -> Result(request.Request(String), RequestError) {
   let ClientRegistrationRequest(
     client_creation_endpoint:,
@@ -44,10 +58,10 @@ pub fn to_http_request(
   ) = client_registration_request
   let req =
     request.from_uri(client_creation_endpoint)
-    |> result.replace_error(InvalidUri(client_creation_endpoint))
+    |> result.replace_error(token_request.InvalidUri)
   use req <- result.map(req)
   let body =
-    client_metadata_to_json(client_metadata)
+    client_metadata_with_extensions_to_json(client_metadata, extensions)
     |> json.to_string()
   access_token
   |> option.map(bearer_token.attach_bearer_token_string_to_header(req, _))
@@ -63,43 +77,62 @@ pub type ClientInformationResponse {
     client_id: String,
     client_id_issued_at: Option(Timestamp),
     client_metadata: ClientMetadata,
+    client_management: Option(ClientManagement),
   )
   ConfidentialClientInformationResponse(
     client_id: String,
     client_id_issued_at: Option(Timestamp),
     client_metadata: ClientMetadata,
+    client_management: Option(ClientManagement),
     client_secret: common.Secret,
   )
+}
+
+pub fn client_information_response_to_json(
+  client_information_response resp: ClientInformationResponse,
+) -> Json {
+  let attr = [
+    #("client_id", json.string(resp.client_id)),
+    ..client_metadata_to_raw_json(resp.client_metadata)
+  ]
+  case resp {
+    ClientInformationResponse(..) -> json.object(attr)
+    ConfidentialClientInformationResponse(client_secret:, ..) ->
+      [#("client_secret", json.string(client_secret.value))]
+      |> list.append(attr, _)
+      |> json.object()
+  }
+}
+
+/// Serializes the client information response to json.
+/// **IMPORTANT**: If the extensions contain a duplicated key it will be serialized AS IS.
+pub fn client_information_response_with_extensions_to_json(
+  client_information_response resp: ClientInformationResponse,
+  extensions ext: List(#(String, Json)),
+) -> Json {
+  let attr = [
+    #("client_id", json.string(resp.client_id)),
+    ..client_metadata_to_raw_json(resp.client_metadata)
+  ]
+  case resp {
+    ClientInformationResponse(..) -> attr
+    ConfidentialClientInformationResponse(client_secret:, ..) ->
+      [#("client_secret", json.string(client_secret.value))]
+      |> list.append(attr, _)
+  }
+  |> list.append(ext)
+  |> json.object()
 }
 
 pub fn parse_client_registration_response(
   response resp: response.Response(String),
 ) -> Result(ClientInformationResponse, ResponseError) {
   let ct =
-    response.get_header(resp, "Content-Type") |> result.map(string.lowercase)
-  let is_json =
-    ct
-    |> result.map(drop_after(source: _, after: ";"))
-    |> result.map(fn(x) { application_json == x })
-    |> result.unwrap(True)
-  case resp.status, is_json {
-    201, True -> parse_success_response(resp)
-    _, True -> parse_error_response(resp)
-    _, _ ->
-      Error(
-        UnsupportedContent({
-          // Content type will always be present, since an not existing content type is treated as application/json
-          let assert Ok(ct) = ct
-          ct
-        }),
-      )
-  }
-}
-
-fn drop_after(source source: String, after after: String) -> String {
-  case string.split_once(source, after) {
-    Ok(#(head, _)) -> head
-    _ -> source
+    helpers.verify_content_type(response: resp, expected: application_json)
+  case resp.status, ct {
+    201, Ok(_) -> parse_success_response(resp)
+    _, Ok(_) -> Error(parse_error_response(resp))
+    _, Error(ct) -> Error(UnsupportedContent(ct))
   }
 }
 
@@ -107,19 +140,10 @@ fn parse_success_response(
   resp: response.Response(String),
 ) -> Result(ClientInformationResponse, ResponseError) {
   json.parse(resp.body, client_information_response_decoder())
-  |> result.map_error(MalformedMessageBody)
+  |> result.map_error(ParseError)
 }
 
-fn parse_error_response(
-  resp: response.Response(String),
-) -> Result(ClientInformationResponse, ResponseError) {
-  case json.parse(resp.body, error_response_decoder(resp.status)) {
-    Ok(err) -> Error(err)
-    Error(err) -> Error(MalformedMessageBody(err))
-  }
-}
-
-fn client_information_response_decoder() -> decode.Decoder(
+pub fn client_information_response_decoder() -> decode.Decoder(
   ClientInformationResponse,
 ) {
   let timestamp_decoder = {
@@ -138,12 +162,14 @@ fn client_information_response_decoder() -> decode.Decoder(
     option.None,
     decode.optional(decode.string),
   )
+  use client_management <- decode.then(client_management_decoder())
   case client_secret {
     option.None ->
       decode.success(ClientInformationResponse(
         client_id:,
         client_id_issued_at:,
         client_metadata:,
+        client_management:,
       ))
     option.Some(client_secret) -> {
       use client_secret_expires_at <- decode.field(
@@ -162,26 +188,43 @@ fn client_information_response_decoder() -> decode.Decoder(
         client_id:,
         client_id_issued_at:,
         client_metadata:,
+        client_management:,
         client_secret:,
       ))
     }
   }
 }
 
-pub type ResponseError {
-  MalformedMessageBody(json.DecodeError)
-  ErrorResponse(status: Int, error: String, error_description: Option(String))
-  UnsupportedContent(content_type: String)
+/// Extension type to meet [RFC7592](https://datatracker.ietf.org/doc/html/rfc7592) requirements.
+/// This allows to parse the registration client uri to read and update the created client as well as the required access token for the endpoint.
+pub type ClientManagement {
+  ClientManagement(
+    registration_client_uri: Uri,
+    registration_access_token: String,
+  )
 }
 
-fn error_response_decoder(status: Int) -> decode.Decoder(ResponseError) {
-  use error <- decode.field("error", decode.string)
-  use error_description <- decode.optional_field(
-    "error_description",
+fn client_management_decoder() -> decode.Decoder(Option(ClientManagement)) {
+  use registration_client_uri: Option(Uri) <- decode.optional_field(
+    "registration_client_uri",
     option.None,
-    decode.optional(decode.string),
+    decode.optional(decode.then(decode.string, uri_decoder)),
   )
-  decode.success(ErrorResponse(status:, error:, error_description:))
+  case registration_client_uri {
+    option.None -> decode.success(option.None)
+    option.Some(registration_client_uri) -> {
+      use registration_access_token <- decode.field(
+        "registration_access_token",
+        decode.string,
+      )
+      decode.success(
+        option.Some(ClientManagement(
+          registration_client_uri:,
+          registration_access_token:,
+        )),
+      )
+    }
+  }
 }
 
 pub type ClientMetadata {
@@ -341,6 +384,20 @@ pub fn client_metadata_decoder() -> decode.Decoder(ClientMetadata) {
 }
 
 pub fn client_metadata_to_json(client_metadata: ClientMetadata) -> Json {
+  client_metadata_with_extensions_to_json(client_metadata, [])
+}
+
+pub fn client_metadata_with_extensions_to_json(
+  client_metadata: ClientMetadata,
+  extensions: List(#(String, Json)),
+) -> Json {
+  client_metadata
+  |> client_metadata_to_raw_json()
+  |> list.append(extensions)
+  |> json.object()
+}
+
+fn client_metadata_to_raw_json(client_metadata: ClientMetadata) {
   let ClientMetadata(
     redirect_uris:,
     software_statement:,
@@ -410,7 +467,6 @@ pub fn client_metadata_to_json(client_metadata: ClientMetadata) -> Json {
   |> list.append(jwks_to_json(jwks))
   |> json_attach_member("software_id", software_id, json.string)
   |> json_attach_member("software_version", software_version, json.string)
-  |> json.object()
 }
 
 pub type JwksLocation {

@@ -3,6 +3,7 @@ import flwr_oauth2/client_registration.{
   AuthorizationCode, ByUri, ClientMetadata, ClientSecretBasic, Code, NoJwks,
 }
 import flwr_oauth2/common
+import flwr_oauth2/response.{ErrorResponse, ParseError, UnsupportedContent} as _
 import flwr_oauth2/test_utils
 import gleam/dict
 import gleam/dynamic/decode
@@ -136,6 +137,7 @@ pub fn parse_client_registration_response_test() {
       client_id:,
       client_id_issued_at:,
       client_metadata:,
+      client_management:,
       client_secret:,
     ) -> {
       client_id |> should.equal("client-id")
@@ -150,6 +152,7 @@ pub fn parse_client_registration_response_test() {
       |> client_registration.client_metadata_to_json()
       |> json.to_string()
       |> birdie.snap("Parse client registration response test")
+      client_management |> should.be_none()
     }
 
     _ -> should.fail()
@@ -172,6 +175,7 @@ pub fn parse_client_registration_response_without_expiring_secret_test() {
       client_id:,
       client_id_issued_at:,
       client_metadata:,
+      client_management:,
       client_secret:,
     ) -> {
       client_id |> should.equal("client-id")
@@ -185,10 +189,31 @@ pub fn parse_client_registration_response_without_expiring_secret_test() {
       |> birdie.snap(
         "Parse client registration response without expiring secret test",
       )
+      client_management |> should.be_none()
     }
 
     _ -> should.fail()
   }
+}
+
+pub fn parse_client_registration_response_with_management_uris_test() {
+  // Given
+  let assert Ok(mngmt) = uri.parse("https://localhost/management")
+  let body =
+    "{\"client_id\":\"client-id\",\"client_id_issued_at\":1787590528,\"client_secret\":\"asdf\",\"client_secret_expires_at\":0,\"redirect_uris\":[\"http://localhost:8080/\"],\"software_statement\":\"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiYWRtaW4iOnRydWUsImlhdCI6MTUxNjIzOTAyMn0.KMUFsIDTnFmyG3nMiGM6H9FNFUROf3wh7SmqJp-QV30\",\"token_endpoint_auth_method\":\"client_secret_basic\",\"grant_types\":[\"authorization_code\"],\"response_types\":[\"code\"],\"client_name\":\"gleam-client\",\"client_name#de-AT\":\"Gleam Klient\",\"client_uri\":\"http://localhost:8080/\",\"logo_uri\":\"http://localhost:8080/logo.svg\",\"scope\":\"read write\",\"contacts\":[\"info@example.com\"],\"tos_uri\":\"http://localhost:8080/tos\",\"policy_uri\":\"http://localhost:8080/policy\",\"jwks_uri\":\"http://localhost:8080/uri\",\"software_id\":\"unique-id\",\"software_version\":\"v1.0.1\",\"registration_client_uri\":\"https://localhost/management\",\"registration_access_token\":\"registration-access-token\"}"
+  let resp = response.Response(status: 201, headers: [], body:)
+
+  // When
+  let res = client_registration.parse_client_registration_response(resp)
+
+  // Then
+  let resp = res |> should.be_ok()
+  resp.client_management
+  |> should.be_some()
+  |> should.equal(client_registration.ClientManagement(
+    mngmt,
+    "registration-access-token",
+  ))
 }
 
 pub fn parse_client_registration_response_without_secret_test() {
@@ -308,7 +333,7 @@ pub fn parse_client_registration_response_without_secret_expires_at_fails_test()
   res
   |> should.be_error()
   |> should.equal(
-    client_registration.MalformedMessageBody(
+    ParseError(
       json.UnableToDecode([
         decode.DecodeError("Field", "Nothing", ["client_secret_expires_at"]),
       ]),
@@ -332,7 +357,7 @@ pub fn parse_client_registration_response_with_invalid_content_type_test() {
   // Then
   res
   |> should.be_error()
-  |> should.equal(client_registration.UnsupportedContent("text/plain"))
+  |> should.equal(UnsupportedContent("text/plain"))
 }
 
 pub fn parse_client_registration_response_with_error_response_test() {
@@ -352,9 +377,10 @@ pub fn parse_client_registration_response_with_error_response_test() {
   // Then
   res
   |> should.be_error()
-  |> should.equal(client_registration.ErrorResponse(
+  |> should.equal(ErrorResponse(
     400,
     "invalid_client_metadata",
     "Unknown language" |> option.Some,
+    option.None,
   ))
 }

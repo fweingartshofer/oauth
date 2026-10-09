@@ -1,0 +1,7 @@
+---
+version: 1.5.4
+title: parse client information success response test
+file: ./test/flwr_oauth2/client_management_test.gleam
+test_name: parse_client_information_success_response_test
+---
+{"client_id":"client-id","redirect_uris":["http://localhost:8080/"],"token_endpoint_auth_method":"client_secret_basic","grant_types":["authorization_code"],"response_types":["code"],"client_name":"gleam-client","scope":"read write","client_secret":"asdf"}

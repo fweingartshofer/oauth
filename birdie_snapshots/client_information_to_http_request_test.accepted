@@ -1,0 +1,11 @@
+---
+version: 1.5.4
+title: client information to http request test
+file: ./test/flwr_oauth2/client_management_test.gleam
+test_name: client_information_to_http_request_test
+---
+GET http://example.com
+authorization: Bearer token
+accept: application/json
+
+

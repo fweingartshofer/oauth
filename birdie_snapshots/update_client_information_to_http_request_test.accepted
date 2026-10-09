@@ -1,0 +1,12 @@
+---
+version: 1.5.4
+title: update client information to http request test
+file: ./test/flwr_oauth2/client_management_test.gleam
+test_name: update_client_information_to_http_request_test
+---
+PUT http://example.com
+authorization: Bearer token
+accept: application/json
+content-type: application/json
+
+{"client_id":"new-id","redirect_uris":["http://localhost/"],"token_endpoint_auth_method":"client_secret_basic","grant_types":["authorization_code"],"response_types":["code"],"client_name":"New Client","client_uri":"http://localhost/","scope":"read write"}

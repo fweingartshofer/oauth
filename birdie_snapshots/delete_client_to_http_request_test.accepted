@@ -1,0 +1,11 @@
+---
+version: 1.5.4
+title: delete client to http request test
+file: ./test/flwr_oauth2/client_management_test.gleam
+test_name: delete_client_to_http_request_test
+---
+DELETE http://example.com
+authorization: Bearer token
+accept: application/json
+
+

@@ -33,6 +33,8 @@ pub type ResponseError {
   )
   /// If the response does not contain valid JSON or does not conform to the error response format defined by [RFC6749 Error Response](https://datatracker.ietf.org/doc/html/rfc6749#section-5.2) this error will be returned.
   ParseError(error: json.DecodeError)
+  /// If the response does not match the required content type such as application/json
+  UnsupportedContent(content_type: String)
 }
 
 /// Parses a token response and returns the access and refresh token if valid response, otherwise the error response.
