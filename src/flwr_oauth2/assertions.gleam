@@ -118,11 +118,12 @@ pub fn to_http_request(
       #("assertion", grant.assertion),
     ]
     |> helpers.add_if_present(scope)
-  let auth_mods = case grant.authentication {
-    option.Some(auth) -> [token_request.authorization_setter(auth)]
-    option.None -> []
-  }
   token_request.setup_request(endpoint: grant.token_endpoint, body: body)
-  |> result.try(token_request.apply_modifiers(_, auth_mods))
+  |> result.try(fn(x) {
+    grant.authentication
+    |> option.map(authentication.authenticate_http_request(x, _))
+    |> option.map(result.replace_error(_, token_request.SecretExpired))
+    |> option.unwrap(Ok(x))
+  })
   |> result.map(token_request.request_body_to_string)
 }

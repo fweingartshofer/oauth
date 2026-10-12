@@ -1,8 +1,6 @@
 import flwr_oauth2/authentication.{type ClientAuthentication}
 import flwr_oauth2/common
 import flwr_oauth2/helpers
-import flwr_oauth2/http_headers
-import gleam/bool
 import gleam/http
 import gleam/http/request.{type Request}
 import gleam/list
@@ -165,8 +163,11 @@ pub fn to_http_request_with_modifiers(
   request: TokenRequest,
   modifiers: List(RequestModifier),
 ) -> Result(Request(String), RequestError) {
-  let modifiers = [authorization_setter(request.authentication), ..modifiers]
   base_http_request(request)
+  |> result.try(fn(x) {
+    authentication.authenticate_http_request(x, request.authentication)
+    |> result.replace_error(SecretExpired)
+  })
   |> result.try(apply_modifiers(_, modifiers))
   |> result.map(request_body_to_string)
 }
@@ -257,78 +258,6 @@ pub fn setup_request(
   |> Ok
 }
 
-/// Encodes the ClientAuthentication that is to be sent to the OAuth 2.0 Server.
-/// For Basic Authentication it will always encode it with base64.
-pub fn authorization_setter(auth: ClientAuthentication) -> RequestModifier {
-  case auth {
-    authentication.ClientSecretBasic(client_id, client_secret) ->
-      compose(
-        guard_secret(client_secret),
-        set_basic_header(client_id.value, client_secret.value),
-      )
-    authentication.ClientSecretPost(client_id, client_secret) ->
-      compose(
-        guard_secret(client_secret),
-        add_body([
-          #("client_id", client_id.value),
-          #("client_secret", client_secret.value),
-        ]),
-      )
-    authentication.PublicAuthentication(client_id) ->
-      add_body([
-        #("client_id", client_id.value),
-      ])
-    authentication.ClientAssertion(
-      client_id,
-      client_assertion,
-      client_assertion_type,
-    ) ->
-      add_body([
-        #("client_id", client_id.value),
-        #("client_assertion_type", client_assertion_type),
-        #("client_assertion", client_assertion),
-      ])
-  }
-}
-
-fn compose(first: RequestModifier, second: RequestModifier) -> RequestModifier {
-  fn(req: UrlEncRequest) {
-    req
-    |> first
-    |> result.try(second)
-  }
-}
-
-fn guard_secret(secret: common.Secret) -> RequestModifier {
-  fn(req: UrlEncRequest) {
-    use <- bool.guard(
-      when: common.is_secret_invalid(secret),
-      return: Error(SecretExpired),
-    )
-    Ok(req)
-  }
-}
-
-fn add_body(fields: List(#(String, String))) -> RequestModifier {
-  fn(req: UrlEncRequest) {
-    req.body
-    |> list.append(fields, _)
-    |> request.set_body(req, _)
-    |> Ok
-  }
-}
-
-fn set_basic_header(
-  client_id: String,
-  client_secret: String,
-) -> RequestModifier {
-  fn(req: UrlEncRequest) {
-    req
-    |> http_headers.set_basic(client_id, client_secret)
-    |> Ok
-  }
-}
-
 /// Build a POST request for an OAuth 2.0 endpoint with the given form-encoded body,
 /// authentication, and optional modifiers.
 /// This is a lower-level alternative to [`to_http_request_with_modifiers`] that
@@ -340,8 +269,11 @@ pub fn build_post_request(
   authentication: ClientAuthentication,
   modifiers: List(RequestModifier),
 ) -> Result(Request(String), RequestError) {
-  let modifiers = [authorization_setter(authentication), ..modifiers]
   setup_request(endpoint, body)
+  |> result.try(fn(x) {
+    authentication.authenticate_http_request(x, authentication)
+    |> result.replace_error(SecretExpired)
+  })
   |> result.try(apply_modifiers(_, modifiers))
   |> result.map(request_body_to_string)
 }
