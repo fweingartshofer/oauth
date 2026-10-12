@@ -88,15 +88,15 @@ pub fn to_jwt_http_request(
 pub fn to_jwt_authentication(
   client_id: common.ClientId,
   client_assertion: String,
-) {
+) -> authentication.ClientAuthentication {
   to_authentication(client_id, client_assertion, jwt_client_assertion_type)
 }
 
 pub fn to_authentication(
   client_id: common.ClientId,
   client_assertion: String,
-  client_assertion_type,
-) {
+  client_assertion_type: String,
+) -> authentication.ClientAuthentication {
   authentication.ClientAssertion(
     client_id:,
     client_assertion:,

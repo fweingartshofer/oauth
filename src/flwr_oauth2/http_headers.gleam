@@ -2,6 +2,9 @@
 
 import gleam/bit_array
 import gleam/http/request
+import gleam/list
+import gleam/string
+import gleam/uri
 
 /// Name for the HTTP Authorization Header
 pub const authorization_header = "authorization"
@@ -19,6 +22,8 @@ pub fn set_basic(
   client_id: String,
   client_secret: String,
 ) {
+  let client_id = client_id |> form_encode()
+  let client_secret = client_secret |> form_encode()
   req
   |> request.set_header(
     authorization_header,
@@ -31,3 +36,26 @@ pub fn encode_base64(client_id: String, client_secret: String) {
   |> bit_array.from_string()
   |> bit_array.base64_encode(True)
 }
+
+fn form_encode(source: String) {
+  source
+  |> string.split(" ")
+  |> list.map(fn(source) {
+    let encoded = uri.percent_encode(source)
+    list.fold(encodings, encoded, fn(source, encoding) {
+      let #(char, replacement) = encoding
+      string.replace(source, char, replacement)
+    })
+  })
+  |> string.join("+")
+}
+
+const encodings = [
+  #("!", "%21"),
+  #("$", "%24"),
+  #("'", "%27"),
+  #("(", "%28"),
+  #(")", "%29"),
+  #("+", "%2B"),
+  #("~", "%7E"),
+]

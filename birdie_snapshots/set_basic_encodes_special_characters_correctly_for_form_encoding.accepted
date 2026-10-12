@@ -1,0 +1,7 @@
+---
+version: 1.5.4
+title: set_basic encodes special characters correctly for form encoding
+file: ./test/flwr_oauth2/http_headers_test.gleam
+test_name: set_basic_encodes_correctly_test
+---
+Basic Q2xpZW50K0lEJTIxOiUyNCUyNyUyOGNsaWVudCUyQnNlY3JldCUyOSU3RSs=

@@ -153,7 +153,9 @@ pub fn to_string(req: TokenRequest) {
 
 /// Creates a http request from the given TokenRequest applying the given modifiers, but does not send it.
 /// Sending the request is done by the user of the function.
-pub fn to_http_request(request) {
+pub fn to_http_request(
+  request: TokenRequest,
+) -> Result(Request(String), RequestError) {
   request |> to_http_request_with_modifiers([])
 }
 
