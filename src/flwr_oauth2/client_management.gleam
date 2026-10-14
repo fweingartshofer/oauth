@@ -3,8 +3,9 @@ import flwr_oauth2/bearer_token
 import flwr_oauth2/client_registration.{
   type ClientInformationResponse, type ClientManagement, ClientManagement,
 }
+import flwr_oauth2/common
 import flwr_oauth2/helpers
-import flwr_oauth2/response.{ParseError} as oauth_response
+import flwr_oauth2/response as oauth_response
 import flwr_oauth2/token_request
 import gleam/http
 import gleam/http/request.{type Request}
@@ -15,6 +16,7 @@ import gleam/result
 pub type ClientManagementErrorResponse {
   /// Error if the bearer token is not valid
   Unauthorized(List(bearer_token.BearerErrorResponse))
+  AuthorizationError(oauth_response.AuthorizationServerError)
   /// The client is not allowed to access this resource
   Forbidden
   /// This operation is not supported by the authorization server
@@ -22,7 +24,7 @@ pub type ClientManagementErrorResponse {
   /// The authorization server responded with an unknown invalid status
   InvalidStatus(status: Int)
   /// The response from the authorization server could not be parsed
-  ErrorResponse(oauth_response.ResponseError)
+  ParseError(common.ParseError)
 }
 
 /// Creates a read (GET) request to the client information endpoint using the provided access token.
@@ -111,15 +113,19 @@ pub fn parse_client_information_response(
 ) -> Result(ClientInformationResponse, ClientManagementErrorResponse) {
   let json_response = resp |> helpers.verify_content_type("application/json")
   case resp.status, json_response {
-    200, Ok(_) ->
+    200, Ok(_) | 200, Error(helpers.MissingContentType) ->
       json.parse(
         resp.body,
         client_registration.client_information_response_decoder(),
       )
+      |> result.map_error(common.ParseError)
       |> result.map_error(ParseError)
-      |> result.map_error(ErrorResponse)
-    400, Ok(_) ->
-      oauth_response.parse_error_response(resp) |> ErrorResponse |> Error
+    400, Ok(_) | 400, Error(helpers.MissingContentType) ->
+      oauth_response.parse_error_response(resp)
+      |> result.map(AuthorizationError)
+      |> result.map_error(ParseError)
+      |> helpers.unwrap_both()
+      |> Error
     401, _ ->
       bearer_token.parse_bearer_error_response(resp)
       |> result.unwrap([])
@@ -127,8 +133,8 @@ pub fn parse_client_information_response(
       |> Error
     403, _ -> Error(Forbidden)
     405, _ -> Error(NotSupported)
-    _, Error(ct) ->
-      oauth_response.UnsupportedContent(ct) |> ErrorResponse |> Error
+    _, Error(helpers.OtherContentType(ct)) ->
+      common.UnsupportedContent(ct) |> ParseError |> Error
     _, _ -> InvalidStatus(resp.status) |> Error
   }
 }
@@ -142,8 +148,12 @@ pub fn parse_client_deletion_response(
   let json_response = resp |> helpers.verify_content_type("application/json")
   case resp.status, json_response {
     204, _ -> Ok(Nil)
-    400, Ok(_) ->
-      oauth_response.parse_error_response(resp) |> ErrorResponse |> Error
+    400, Ok(_) | 400, Error(helpers.MissingContentType) ->
+      oauth_response.parse_error_response(resp)
+      |> result.map(AuthorizationError)
+      |> result.map_error(ParseError)
+      |> helpers.unwrap_both()
+      |> Error
     401, _ ->
       bearer_token.parse_bearer_error_response(resp)
       |> result.unwrap([])
@@ -151,8 +161,8 @@ pub fn parse_client_deletion_response(
       |> Error
     403, _ -> Error(Forbidden)
     405, _ -> Error(NotSupported)
-    _, Error(ct) ->
-      oauth_response.UnsupportedContent(ct) |> ErrorResponse |> Error
+    _, Error(helpers.OtherContentType(ct)) ->
+      common.UnsupportedContent(ct) |> ParseError |> Error
     _, _ -> InvalidStatus(resp.status) |> Error
   }
 }

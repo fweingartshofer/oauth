@@ -7,7 +7,7 @@ import flwr_oauth2/common.{
 import flwr_oauth2/helpers
 import flwr_oauth2/jwk.{type JwkSet}
 import flwr_oauth2/response.{
-  type ResponseError, ParseError, UnsupportedContent, parse_error_response,
+  type ResponseError, ErrorResponse, ParseError, parse_error_response,
 } as _
 import flwr_oauth2/token_request
 import gleam/bool
@@ -130,31 +130,34 @@ pub fn parse_client_registration_response(
   let ct =
     helpers.verify_content_type(response: resp, expected: application_json)
   case resp.status, ct {
-    201, Ok(_) -> parse_success_response(resp)
-    _, Ok(_) -> Error(parse_error_response(resp))
-    _, Error(ct) -> Error(UnsupportedContent(ct))
+    201, Ok(_) | 201, Error(helpers.MissingContentType) ->
+      parse_success_response(resp) |> result.map_error(ParseError)
+    _, Ok(_) | _, Error(helpers.MissingContentType) ->
+      parse_error_response(resp)
+      |> result.map_error(ParseError)
+      |> result.map(ErrorResponse)
+      |> helpers.unwrap_both()
+      |> Error()
+    _, Error(helpers.OtherContentType(ct)) ->
+      Error(common.UnsupportedContent(ct) |> ParseError)
   }
 }
 
 fn parse_success_response(
   resp: response.Response(String),
-) -> Result(ClientInformationResponse, ResponseError) {
+) -> Result(ClientInformationResponse, common.ParseError) {
   json.parse(resp.body, client_information_response_decoder())
-  |> result.map_error(ParseError)
+  |> result.map_error(common.ParseError)
 }
 
 pub fn client_information_response_decoder() -> decode.Decoder(
   ClientInformationResponse,
 ) {
-  let timestamp_decoder = {
-    use seconds <- decode.then(decode.int)
-    decode.success(timestamp.from_unix_seconds(seconds))
-  }
   use client_id <- decode.field("client_id", decode.string)
   use client_id_issued_at <- decode.optional_field(
     "client_id_issued_at",
     option.None,
-    decode.optional(timestamp_decoder),
+    decode.optional(common.timestamp_decoder()),
   )
   use client_metadata <- decode.then(client_metadata_decoder())
   use client_secret <- decode.optional_field(

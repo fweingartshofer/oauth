@@ -1,7 +1,7 @@
 import flwr_oauth2/common
 import flwr_oauth2/http_headers
 import gleam/bool
-import gleam/http/request
+import gleam/http/request.{type Request}
 import gleam/list
 import gleam/result
 
@@ -38,25 +38,38 @@ pub type ClientAuthentication {
 /// For example, used for token introspection.
 /// Returns Error(Nil) if the secret has expired.
 pub fn authenticate_http_request(
-  request req: request.Request(List(#(String, String))),
+  request req: Request(List(#(String, String))),
   authentication auth: ClientAuthentication,
-) -> Result(request.Request(List(#(String, String))), Nil) {
+) -> Result(Request(List(#(String, String))), Nil) {
   let setter = auth |> authentication_setter()
   setter(req)
+}
+
+/// Utility method to authenticate a request with just the ClientSecretBasic authentication mechanism.
+/// This is useful for token introspection calls or other requests that need to have a body available while still containing authentication for the client.
+/// Basic authentication is singled out, since it is the only authentication mechanism to not require a body for OAuth Authentication Requests.
+/// If either the secret is expired or the authentication method is not supported returns Error(Nil).
+pub fn basic_authenticate_http_request(
+  request req: Request(a),
+  authentication auth: ClientAuthentication,
+) {
+  case auth {
+    ClientSecretBasic(client_id:, client_secret:) ->
+      compose(
+        guard_secret(client_secret),
+        set_basic_header(client_id.value, client_secret.value),
+      )(req)
+    _ -> Error(Nil)
+  }
 }
 
 /// Encodes the ClientAuthentication that is to be sent to the OAuth 2.0 Server.
 /// For Basic Authentication it will always encode it with base64.
 fn authentication_setter(
   auth: ClientAuthentication,
-) -> fn(request.Request(List(#(String, String)))) ->
-  Result(request.Request(List(#(String, String))), Nil) {
+) -> fn(Request(List(#(String, String)))) ->
+  Result(Request(List(#(String, String))), Nil) {
   case auth {
-    ClientSecretBasic(client_id, client_secret) ->
-      compose(
-        guard_secret(client_secret),
-        set_basic_header(client_id.value, client_secret.value),
-      )
     ClientSecretPost(client_id, client_secret) ->
       compose(
         guard_secret(client_secret),
@@ -75,14 +88,18 @@ fn authentication_setter(
         #("client_assertion_type", client_assertion_type),
         #("client_assertion", client_assertion),
       ])
+    ClientSecretBasic(client_id, client_secret) ->
+      compose(
+        guard_secret(client_secret),
+        set_basic_header(client_id.value, client_secret.value),
+      )
   }
 }
 
 fn compose(
-  first: fn(request.Request(List(#(String, String)))) -> Result(a, Nil),
-  second: fn(a) -> Result(request.Request(List(#(String, String))), Nil),
-) -> fn(request.Request(List(#(String, String)))) ->
-  Result(request.Request(List(#(String, String))), Nil) {
+  first: fn(Request(a)) -> Result(b, Nil),
+  second: fn(b) -> Result(Request(a), Nil),
+) -> fn(Request(a)) -> Result(Request(a), Nil) {
   fn(req) {
     req
     |> first
@@ -92,8 +109,7 @@ fn compose(
 
 fn guard_secret(
   secret: common.Secret,
-) -> fn(request.Request(List(#(String, String)))) ->
-  Result(request.Request(List(#(String, String))), Nil) {
+) -> fn(Request(a)) -> Result(Request(a), Nil) {
   fn(req) {
     use <- bool.guard(
       when: common.is_secret_invalid(secret),
@@ -105,9 +121,9 @@ fn guard_secret(
 
 fn add_body(
   fields: List(#(String, String)),
-) -> fn(request.Request(List(#(String, String)))) ->
-  Result(request.Request(List(#(String, String))), a) {
-  fn(req: request.Request(List(#(String, String)))) {
+) -> fn(Request(List(#(String, String)))) ->
+  Result(Request(List(#(String, String))), a) {
+  fn(req: Request(List(#(String, String)))) {
     req.body
     |> list.append(fields, _)
     |> request.set_body(req, _)
@@ -118,8 +134,7 @@ fn add_body(
 fn set_basic_header(
   client_id: String,
   client_secret: String,
-) -> fn(request.Request(List(#(String, String)))) ->
-  Result(request.Request(List(#(String, String))), a) {
+) -> fn(Request(a)) -> Result(Request(a), b) {
   fn(req) {
     req
     |> http_headers.set_basic(client_id, client_secret)

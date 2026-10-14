@@ -87,23 +87,33 @@ pub type BearerErrorResponse {
   )
 }
 
+pub type BearerTokenParserError {
+  MissingBearerError
+  InvalidHeader(www_authenticate_parser.ParserError)
+}
+
 /// This method implements [RFC6750](https://datatracker.ietf.org/doc/html/rfc6750#section-3) to parse error responses.
 /// Use this method when requesting a resource from the resource server and it responds with 401 status code.
 /// Per RFC6750 when the server responds with 401, the bearer token must not be reused, even if there is no BearerErrorResponse.
 pub fn parse_bearer_error_response(
   response resp: Response(a),
-) -> Result(List(BearerErrorResponse), Nil) {
+) -> Result(List(BearerErrorResponse), BearerTokenParserError) {
   let challenges =
     resp.headers
     |> list.filter(fn(el) { string.lowercase(el.0) == "www-authenticate" })
     |> list.map(fn(h) { www_authenticate_parser.parse(h.1) })
     |> result.all()
     |> result.map(list.flatten)
-    |> result.replace_error(Nil)
-  use challenges <- result.map(challenges)
-  challenges
-  |> list.filter(fn(c) { string.lowercase(c.scheme) == "bearer" })
-  |> list.map(parse_challenge)
+    |> result.map_error(InvalidHeader)
+  use challenges <- result.try(challenges)
+  let challenges =
+    challenges
+    |> list.filter(fn(c) { string.lowercase(c.scheme) == "bearer" })
+    |> list.map(parse_challenge)
+  case challenges {
+    [] -> MissingBearerError |> Error
+    _ -> challenges |> Ok
+  }
 }
 
 fn parse_challenge(challenge: Challenge) {

@@ -51,12 +51,13 @@ pub fn parse_token_response_with_error_response_test() {
     "{\"error\": \"invalid_request\", \"error_description\": \"Invalid Request\", \"error_uri\": \"https://example.com\"}"
   let resp = response.Response(status: 400, headers: [], body: json)
   let expected =
-    oauth_response.ErrorResponse(
+    oauth_response.AuthorizationServerError(
       status: 400,
       error: "invalid_request",
       error_description: option.Some("Invalid Request"),
       error_uri: option.Some("https://example.com"),
     )
+    |> oauth_response.ErrorResponse
 
   // When
   let res = oauth_response.parse_token_response(resp)

@@ -7,9 +7,11 @@ import flwr_oauth2/authentication
 import flwr_oauth2/helpers
 import flwr_oauth2/response as oauth_response
 import flwr_oauth2/token_request
+import gleam/dynamic/decode
 import gleam/http/request
 import gleam/http/response
 import gleam/option
+import gleam/result
 import gleam/uri
 
 /// Defines a [RFC7009 Revocation Request](https://datatracker.ietf.org/doc/html/rfc7009#section-2.1).
@@ -55,12 +57,27 @@ pub fn to_http_request(
 
 fn type_hint(revocation_request: RevocationRequest) {
   use hint <- option.map(revocation_request.token_type_hint)
-  let token_type = case hint {
+  let token_type = hint |> token_type_hint_to_string()
+  #("token_type_hint", token_type)
+}
+
+/// Stringifies the token type hint
+pub fn token_type_hint_to_string(hint: TokenTypeHint) {
+  case hint {
     AccessToken -> "access_token"
     RefreshToken -> "refresh_token"
     Other(hint) -> hint
   }
-  #("token_type_hint", token_type)
+}
+
+/// String to token type hint
+pub fn token_type_hint_decoder(hint: String) {
+  case hint {
+    "access_token" -> AccessToken
+    "refresh_token" -> RefreshToken
+    hint -> Other(hint:)
+  }
+  |> decode.success()
 }
 
 /// Parses a revocation response as defined in [RFC7009](https://datatracker.ietf.org/doc/html/rfc7009#section-2.2).
@@ -71,6 +88,11 @@ pub fn parse_revocation_response(
 ) -> Result(RevocationResponse, oauth_response.ResponseError) {
   case revocation_response.status {
     200 -> Ok(RevocationResponse)
-    _ -> oauth_response.parse_error_response(revocation_response) |> Error()
+    _ ->
+      oauth_response.parse_error_response(revocation_response)
+      |> result.map_error(oauth_response.ParseError)
+      |> result.map(oauth_response.ErrorResponse)
+      |> helpers.unwrap_both()
+      |> Error()
   }
 }

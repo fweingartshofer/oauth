@@ -4,7 +4,8 @@ import flwr_oauth2/client_management
 import flwr_oauth2/client_registration.{
   ClientInformationResponse, ClientManagement, ClientMetadata, ClientSecretBasic,
 }
-import flwr_oauth2/response.{ErrorResponse, UnsupportedContent} as _
+import flwr_oauth2/common
+import flwr_oauth2/response.{AuthorizationServerError} as _
 import flwr_oauth2/test_utils
 import gleam/dict
 import gleam/http/response
@@ -180,7 +181,7 @@ pub fn parse_client_information_bad_request_response_test() {
   res
   |> should.be_error()
   |> should.equal(
-    client_management.ErrorResponse(ErrorResponse(
+    client_management.AuthorizationError(AuthorizationServerError(
       400,
       error: "invalid_request",
       error_description: None,
@@ -261,7 +262,7 @@ pub fn parse_client_information_unsupported_content_response_test() {
   res
   |> should.be_error()
   |> should.equal(
-    client_management.ErrorResponse(UnsupportedContent("application/xml")),
+    client_management.ParseError(common.UnsupportedContent("application/xml")),
   )
 }
 
@@ -307,7 +308,7 @@ pub fn parse_client_deletion_error_response_test() {
   res
   |> should.be_error()
   |> should.equal(
-    client_management.ErrorResponse(ErrorResponse(
+    client_management.AuthorizationError(AuthorizationServerError(
       status: 400,
       error: "invalid_client",
       error_description: option.None,
@@ -388,7 +389,7 @@ pub fn parse_client_deletion_unsupported_content_error_response_test() {
   res
   |> should.be_error()
   |> should.equal(
-    client_management.ErrorResponse(UnsupportedContent("application/xml")),
+    client_management.ParseError(common.UnsupportedContent("application/xml")),
   )
 }
 

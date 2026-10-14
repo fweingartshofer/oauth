@@ -62,19 +62,26 @@ fn concat_strings(left: String, right: String) -> String {
   left <> right
 }
 
+pub type ContentTypeError {
+  MissingContentType
+  OtherContentType(String)
+}
+
 /// Convenience method that matches if a request contains the correct content type.
 /// Returns Ok(Nil) if type matches, otherwise returns an Error with the given content type.
+/// If the content type is empty returns Ok(Nil).
 pub fn verify_content_type(
   response resp: response.Response(a),
   expected expected_content_type: String,
-) -> Result(Nil, String) {
-  let ct = response.get_header(resp, "content-type")
-  ct
-  |> result.map(fn(source) {
-    let x = drop_after(source:, after: ";") |> string.lowercase()
-    bool.guard(expected_content_type == x, Ok(Nil), fn() { Error(source) })
+) -> Result(Nil, ContentTypeError) {
+  let ct =
+    response.get_header(resp, "content-type")
+    |> result.replace_error(MissingContentType)
+  use source <- result.try(ct)
+  let x = drop_after(source:, after: ";") |> string.lowercase()
+  bool.guard(expected_content_type == x, Ok(Nil), fn() {
+    Error(OtherContentType(source))
   })
-  |> result.unwrap(Ok(Nil))
 }
 
 fn drop_after(source source: String, after after: String) -> String {

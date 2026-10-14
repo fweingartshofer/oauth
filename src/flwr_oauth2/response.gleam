@@ -21,20 +21,23 @@ pub type AccessTokenResponse {
   )
 }
 
-/// Errors returned by this module when parsing responses, such as token responses from the OAuth 2.0 server.
-pub type ResponseError {
+pub type AuthorizationServerError {
   /// If the response contains errors a `ErrorResponse` will be returned.
   /// It contains the HTTP status, the error code string, optionally an error description and an error URI.
-  ErrorResponse(
+  AuthorizationServerError(
     status: Int,
     error: String,
     error_description: option.Option(String),
     error_uri: option.Option(String),
   )
-  /// If the response does not contain valid JSON or does not conform to the error response format defined by [RFC6749 Error Response](https://datatracker.ietf.org/doc/html/rfc6749#section-5.2) this error will be returned.
-  ParseError(error: json.DecodeError)
-  /// If the response does not match the required content type such as application/json
-  UnsupportedContent(content_type: String)
+}
+
+/// Errors returned by this module when parsing responses, such as token responses from the OAuth 2.0 server.
+pub type ResponseError {
+  /// Constructor if the response is a semantic error, such as an unauthorized refresh token.
+  ErrorResponse(AuthorizationServerError)
+  /// Constructor if the error is a syntactic one, such as an invalid content type or invalid json.
+  ParseError(common.ParseError)
 }
 
 /// Parses a token response and returns the access and refresh token if valid response, otherwise the error response.
@@ -43,7 +46,12 @@ pub fn parse_token_response(
 ) -> Result(AccessTokenResponse, ResponseError) {
   case response.status {
     200 -> parse_token_success_response(response)
-    _ -> parse_error_response(response) |> Error()
+    _ ->
+      parse_error_response(response)
+      |> result.map_error(ParseError)
+      |> result.map(ErrorResponse)
+      |> helpers.unwrap_both()
+      |> Error()
   }
 }
 
@@ -81,13 +89,14 @@ fn parse_token_success_response(
     ))
   }
   json.parse(from: response.body, using: token_decoder)
+  |> result.map_error(common.ParseError)
   |> result.map_error(ParseError)
 }
 
 /// Parses an OAuth 2.0 error response defined in [RFC6749 Error Response](https://datatracker.ietf.org/doc/html/rfc6749#section-5.2).
 pub fn parse_error_response(
   response: response.Response(String),
-) -> ResponseError {
+) -> Result(AuthorizationServerError, common.ParseError) {
   let error_decoder = {
     use error <- decode.field("error", decode.string)
     use error_description <- decode.optional_field(
@@ -100,7 +109,7 @@ pub fn parse_error_response(
       option.None,
       decode.optional(decode.string),
     )
-    decode.success(ErrorResponse(
+    decode.success(AuthorizationServerError(
       status: response.status,
       error: error,
       error_description: error_description,
@@ -108,8 +117,7 @@ pub fn parse_error_response(
     ))
   }
   json.parse(from: response.body, using: error_decoder)
-  |> result.map_error(ParseError)
-  |> helpers.unwrap_both()
+  |> result.map_error(common.ParseError)
 }
 
 /// Creates a String representation of a token request

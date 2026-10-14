@@ -39,5 +39,7 @@ pub fn verify_content_type_returns_error_test() {
     helpers.verify_content_type(response: resp, expected: "application/json")
 
   // Then
-  res |> should.be_error() |> should.equal("application/jsonld; charset: UTF-8")
+  res
+  |> should.be_error()
+  |> should.equal(helpers.OtherContentType("application/jsonld; charset: UTF-8"))
 }

@@ -58,12 +58,13 @@ pub fn parse_revocation_response_with_success_response_test() {
 pub fn parse_revocation_response_with_error_response_test() {
   // Given
   let expected =
-    oauth_response.ErrorResponse(
+    oauth_response.AuthorizationServerError(
       400,
       "unsupported_token_type",
       option.Some("This token type is not supported"),
       option.Some("https://example.com"),
     )
+    |> oauth_response.ErrorResponse
   let body =
     "{\"error\": \"unsupported_token_type\", \"error_description\": \"This token type is not supported\", \"error_uri\": \"https://example.com\"}"
   let resp = response.new(400) |> response.set_body(body)

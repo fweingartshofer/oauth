@@ -5,7 +5,7 @@ import gleam/list
 import gleam/option.{type Option}
 import gleam/order
 import gleam/string
-import gleam/time/timestamp
+import gleam/time/timestamp.{type Timestamp}
 import gleam/uri.{type Uri}
 
 /// Type alias for the scope.
@@ -22,7 +22,7 @@ pub type Secret {
   Secret(value: String)
   /// A client secret with an expiration date attached.
   /// Can be used to check if the secret expired.
-  SecretWithExpiration(value: String, expires_at: timestamp.Timestamp)
+  SecretWithExpiration(value: String, expires_at: Timestamp)
 }
 
 /// Type to indicate the client ID.
@@ -30,6 +30,13 @@ pub type Secret {
 /// See [RFC6749](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1.1)
 pub type ClientId {
   ClientId(value: String)
+}
+
+pub type ParseError {
+  /// If the response does not contain valid JSON or does not conform to the error response format defined by [RFC6749 Error Response](https://datatracker.ietf.org/doc/html/rfc6749#section-5.2) this error will be returned.
+  ParseError(error: json.DecodeError)
+  /// If the response does not match the required content type such as application/json
+  UnsupportedContent(content_type: String)
 }
 
 /// Checks if a given secret is not expired.
@@ -78,6 +85,11 @@ pub fn uri_decoder(raw_uri: String) -> Decoder(Uri) {
 
 pub fn uri_to_json(raw_uri: Uri) -> Json {
   json.string(uri.to_string(raw_uri))
+}
+
+pub fn timestamp_decoder() -> Decoder(Timestamp) {
+  use seconds <- decode.then(decode.int)
+  decode.success(timestamp.from_unix_seconds(seconds))
 }
 
 pub fn json_attach_member(

@@ -26,7 +26,9 @@ pub type ParserError {
 
 /// Implements a parser to parse [RFC7235 WWW-Authenticate Headers](https://datatracker.ietf.org/doc/html/rfc7235#section-4.1)
 /// The parser can parse the most common WWW-Authenticate formats, but not token68.
-pub fn parse(www_authenticate source: String) {
+pub fn parse(
+  www_authenticate source: String,
+) -> Result(List(Challenge), ParserError) {
   lex(source) |> list.filter(fn(x) { x != Whitespace }) |> do_parse([])
 }
 

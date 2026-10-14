@@ -2,8 +2,8 @@ import birdie
 import flwr_oauth2/client_registration.{
   AuthorizationCode, ByUri, ClientMetadata, ClientSecretBasic, Code, NoJwks,
 }
-import flwr_oauth2/common
-import flwr_oauth2/response.{ErrorResponse, ParseError, UnsupportedContent} as _
+import flwr_oauth2/common.{UnsupportedContent}
+import flwr_oauth2/response as oauth_response
 import flwr_oauth2/test_utils
 import gleam/dict
 import gleam/dynamic/decode
@@ -333,11 +333,12 @@ pub fn parse_client_registration_response_without_secret_expires_at_fails_test()
   res
   |> should.be_error()
   |> should.equal(
-    ParseError(
+    common.ParseError(
       json.UnableToDecode([
         decode.DecodeError("Field", "Nothing", ["client_secret_expires_at"]),
       ]),
-    ),
+    )
+    |> oauth_response.ParseError,
   )
 }
 
@@ -357,7 +358,7 @@ pub fn parse_client_registration_response_with_invalid_content_type_test() {
   // Then
   res
   |> should.be_error()
-  |> should.equal(UnsupportedContent("text/plain"))
+  |> should.equal(UnsupportedContent("text/plain") |> oauth_response.ParseError)
 }
 
 pub fn parse_client_registration_response_with_error_response_test() {
@@ -377,10 +378,13 @@ pub fn parse_client_registration_response_with_error_response_test() {
   // Then
   res
   |> should.be_error()
-  |> should.equal(ErrorResponse(
-    400,
-    "invalid_client_metadata",
-    "Unknown language" |> option.Some,
-    option.None,
-  ))
+  |> should.equal(
+    oauth_response.AuthorizationServerError(
+      400,
+      "invalid_client_metadata",
+      "Unknown language" |> option.Some,
+      option.None,
+    )
+    |> oauth_response.ErrorResponse,
+  )
 }
