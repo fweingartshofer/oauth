@@ -11,7 +11,7 @@ compatibility with as many use cases as possible.
 [![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/flwr_oauth2/)
 
 ```sh
-gleam add flwr_oauth2@3.2.1
+gleam add flwr_oauth2@3.3.0
 ```
 
 ```gleam
@@ -67,7 +67,7 @@ This package aims to implement the most common ones.
 - [x] [RFC7591 Dynamic Client Creation](https://datatracker.ietf.org/doc/html/rfc7591)
 - [x] [RFC7592 Dynamic Client Registration Management Protocol](https://datatracker.ietf.org/doc/html/rfc7592)
 - [x] [RFC7636 PKCE Extension for OAuth 2.0](https://datatracker.ietf.org/doc/html/rfc7636)
-- [ ] [RFC7662 Token Introspection](https://datatracker.ietf.org/doc/html/rfc7662)
+- [x] [RFC7662 Token Introspection](https://datatracker.ietf.org/doc/html/rfc7662)
 - [ ] [RFC8414 Authorization Server Metadata](https://datatracker.ietf.org/doc/html/rfc8414) (updated by [RFC9729](https://datatracker.ietf.org/doc/html/rfc9729))
 - [ ] [RFC8628 Device Authorization Grant](https://datatracker.ietf.org/doc/html/rfc8628)
 - [ ] [RFC8693 Token Exchange](https://datatracker.ietf.org/doc/html/rfc8693)

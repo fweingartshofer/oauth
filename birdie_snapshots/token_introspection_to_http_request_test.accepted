@@ -1,0 +1,11 @@
+---
+version: 1.5.4
+title: Token Introspection to http request test
+file: ./test/flwr_oauth2/token_introspection_test.gleam
+test_name: to_http_request_test
+---
+POST https://example.com
+content-type: application/x-www-form-urlencoded
+accept: application/json
+
+token_type_hint=access_token&token=token
