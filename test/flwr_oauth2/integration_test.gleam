@@ -3,9 +3,9 @@ import flwr_oauth2 as oauth2
 import flwr_oauth2/authentication
 import flwr_oauth2/common
 import flwr_oauth2/helpers
+import flwr_oauth2/integration_http
 import flwr_oauth2/token_request
 import gleam/bool
-import gleam/hackney
 import gleam/io
 import gleam/result
 import gleam/uri
@@ -31,13 +31,14 @@ pub fn client_credential_grant_with_http_port_retrieves_tokens_test() {
   let assert Ok(req) = oauth2.to_http_request(token_request)
 
   // When
-  let res = hackney.send(req)
+  use res <- integration_http.send(req)
 
   // Then
   res
   |> should.be_ok()
   |> oauth2.parse_token_response()
   |> should.be_ok()
+  Nil
 }
 
 pub fn client_credential_grant_with_authorization_basic_retrieves_tokens_test() {
@@ -60,13 +61,15 @@ pub fn client_credential_grant_with_authorization_basic_retrieves_tokens_test() 
   let assert Ok(req) = oauth2.to_http_request(token_request)
 
   // When
-  let res = hackney.send(req)
+  use res <- integration_http.send(req)
 
   // Then
-  res
-  |> should.be_ok()
-  |> oauth2.parse_token_response()
-  |> should.be_ok()
+  let _ =
+    res
+    |> should.be_ok()
+    |> oauth2.parse_token_response()
+    |> should.be_ok()
+  Nil
 }
 
 fn run_integration_tests(integration_test: fn(Nil) -> b) {
