@@ -76,7 +76,15 @@ fn string_not_empty(l: String) -> Bool {
   !string.is_empty(l)
 }
 
-pub fn uri_decoder(raw_uri: String) -> Decoder(Uri) {
+// pub fn uri_decoder(raw_uri: String) -> Decoder(Uri) {
+//   case uri.parse(raw_uri) {
+//     Ok(res) -> decode.success(res)
+//     _ -> decode.failure(uri.empty, "Invalid URI")
+//   }
+// }
+
+pub fn uri_decoder() -> Decoder(Uri) {
+  use raw_uri <- decode.then(decode.string)
   case uri.parse(raw_uri) {
     Ok(res) -> decode.success(res)
     _ -> decode.failure(uri.empty, "Invalid URI")

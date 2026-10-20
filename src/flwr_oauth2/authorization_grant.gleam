@@ -5,6 +5,7 @@ import flwr_oauth2/pkce
 import flwr_oauth2/response.{type AccessTokenResponse, AccessTokenResponse}
 import flwr_oauth2/token_request
 import gleam/dict
+import gleam/dynamic/decode
 import gleam/http/request
 import gleam/int
 import gleam/list
@@ -33,6 +34,24 @@ pub type ResponseType {
 pub type CodeChallengeMethod {
   Plain
   S256
+  Other(value: String)
+}
+
+pub fn code_challange_method_to_string(method: CodeChallengeMethod) {
+  case method {
+    Plain -> "plain"
+    S256 -> "S256"
+    Other(value:) -> value
+  }
+}
+
+pub fn code_challange_method_decoder(method: String) {
+  case method {
+    "plain" -> Plain
+    "S256" -> S256
+    value -> Other(value:)
+  }
+  |> decode.success()
 }
 
 /// This defines a redirect url defined by [RFC6749 Authorization Code Grant](https://datatracker.ietf.org/doc/html/rfc6749#section-4.1).
@@ -183,10 +202,7 @@ pub fn make_redirect_uri(
   let code_challenge_method =
     redirect_config.code_challenge_method
     |> option.map(fn(x) {
-      #("code_challenge_method", case x {
-        Plain -> "plain"
-        S256 -> "S256"
-      })
+      #("code_challenge_method", code_challange_method_to_string(x))
     })
   let queries =
     [

@@ -1,0 +1,10 @@
+---
+version: 1.5.4
+title: Authorization Server Metadata To Http Request Test
+file: ./test/flwr_oauth2/authorization_server_metadata_test.gleam
+test_name: to_http_request_test
+---
+GET https://example.com/.well-known/oauth-authorization-server
+accept: application/json
+
+

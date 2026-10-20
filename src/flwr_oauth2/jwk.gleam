@@ -62,7 +62,7 @@ pub fn json_web_key_decoder() -> Decoder(JsonWebKey) {
   use x5u <- decode.optional_field(
     "x5u",
     option.None,
-    decode.optional(decode.then(decode.string, uri_decoder)),
+    decode.optional(uri_decoder()),
   )
   use x5c <- decode.optional_field("x5c", [], decode.list(decode.string))
   use x5t <- decode.optional_field(
@@ -241,7 +241,7 @@ pub type Algorithm {
   OtherAlgorithm(value: String)
 }
 
-fn algorithm_decoder(alg: String) -> Decoder(Algorithm) {
+pub fn algorithm_decoder(alg: String) -> Decoder(Algorithm) {
   case alg {
     "RS256" -> decode.success(RS256)
     "ES256" -> decode.success(ES256)

@@ -211,7 +211,7 @@ fn client_management_decoder() -> decode.Decoder(Option(ClientManagement)) {
   use registration_client_uri: Option(Uri) <- decode.optional_field(
     "registration_client_uri",
     option.None,
-    decode.optional(decode.then(decode.string, uri_decoder)),
+    decode.optional(uri_decoder()),
   )
   case registration_client_uri {
     option.None -> decode.success(option.None)
@@ -260,12 +260,11 @@ pub type ClientMetadata {
 }
 
 pub fn client_metadata_decoder() -> decode.Decoder(ClientMetadata) {
-  let uri_field_decoder = decode.then(decode.string, uri_decoder)
   use fields <- decode.then(decode.dict(decode.string, decode.dynamic))
   use redirect_uris <- decode.optional_field(
     "redirect_uris",
     [],
-    decode.list(uri_field_decoder),
+    decode.list(uri_decoder()),
   )
   use software_statement <- decode.optional_field(
     "software_statement",
@@ -303,22 +302,22 @@ pub fn client_metadata_decoder() -> decode.Decoder(ClientMetadata) {
   use client_uri <- decode.optional_field(
     "client_uri",
     option.None,
-    decode.optional(uri_field_decoder),
+    decode.optional(uri_decoder()),
   )
   use client_uri_localized <- decode.then(localized_decoder(
     fields,
     "client_uri",
-    uri_field_decoder,
+    uri_decoder(),
   ))
   use logo_uri <- decode.optional_field(
     "logo_uri",
     option.None,
-    decode.optional(uri_field_decoder),
+    decode.optional(uri_decoder()),
   )
   use logo_uri_localized <- decode.then(localized_decoder(
     fields,
     "logo_uri",
-    uri_field_decoder,
+    uri_decoder(),
   ))
   use scope <- decode.optional_field(
     "scope",
@@ -334,22 +333,22 @@ pub fn client_metadata_decoder() -> decode.Decoder(ClientMetadata) {
   use tos_uri <- decode.optional_field(
     "tos_uri",
     option.None,
-    decode.optional(uri_field_decoder),
+    decode.optional(uri_decoder()),
   )
   use tos_uri_localized <- decode.then(localized_decoder(
     fields,
     "tos_uri",
-    uri_field_decoder,
+    uri_decoder(),
   ))
   use policy_uri <- decode.optional_field(
     "policy_uri",
     option.None,
-    decode.optional(uri_field_decoder),
+    decode.optional(uri_decoder()),
   )
   use policy_uri_localized <- decode.then(localized_decoder(
     fields,
     "policy_uri",
-    uri_field_decoder,
+    uri_decoder(),
   ))
   use jwks <- decode.then(jwks_location_decoder())
   use software_id <- decode.optional_field(
@@ -482,7 +481,7 @@ fn jwks_location_decoder() -> decode.Decoder(JwksLocation) {
   use jwks_uri <- decode.optional_field(
     "jwks_uri",
     option.None,
-    decode.optional(decode.then(decode.string, uri_decoder)),
+    decode.optional(uri_decoder()),
   )
   use jwks <- decode.optional_field(
     "jwks",
@@ -513,7 +512,7 @@ pub type TokenEndpointAuthMethod {
   OtherTokenEndpointAuthMethod(name: String)
 }
 
-fn token_endpoint_auth_method_decoder(
+pub fn token_endpoint_auth_method_decoder(
   name: String,
 ) -> decode.Decoder(TokenEndpointAuthMethod) {
   case name {
@@ -546,7 +545,7 @@ pub type GrantType {
   OtherGrantType(name: String)
 }
 
-fn grant_type_decoder(name: String) -> decode.Decoder(GrantType) {
+pub fn grant_type_decoder(name: String) -> decode.Decoder(GrantType) {
   case name {
     "authorization_code" -> decode.success(AuthorizationCode)
     "implicit" -> decode.success(Implicit)
@@ -582,7 +581,7 @@ pub type ResponseType {
   OtherResponseType(name: String)
 }
 
-fn response_type_decoder(name: String) -> decode.Decoder(ResponseType) {
+pub fn response_type_decoder(name: String) -> decode.Decoder(ResponseType) {
   case name {
     "code" -> decode.success(Code)
     "token" -> decode.success(Token)
